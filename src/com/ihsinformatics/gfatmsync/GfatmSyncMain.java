@@ -42,9 +42,9 @@ public class GfatmSyncMain {
 	public static void main(String[] args) {
 		GfatmSyncMain gfatm = new GfatmSyncMain();
 		gfatm.readProperties();
-		gfatm.resetWarehouse();
 		gfatm.loadData();
-
+		// Warehousing process
+		gfatm.dimensionModeling(true);
 		System.exit(0);
 	}
 
@@ -86,24 +86,45 @@ public class GfatmSyncMain {
 			log.warning("Properties file not found in class path.");
 		}
 	}
-
-	/**
-	 * Remove all data from warehouse and regenerate
-	 */
-	public void resetWarehouse() {
-		String[] dimTables = { "dim_concept", "dim_datetime", "dim_encounter",
-				"dim_location", "dim_obs", "dim_patient", "dim_systems",
-				"dim_user" };
-		String[] factTables = {};
+	
+	public void dimensionModeling(boolean fromScratch) {
+		if (fromScratch) {
+			String[] dimTables = { "dim_concept", "dim_datetime", "dim_encounter",
+					"dim_location", "dim_obs", "dim_patient", "dim_systems",
+					"dim_user" };
+			try {
+				for (String table : dimTables) {
+					dwDb.truncateTable(table);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
 		try {
-			// Delete data from all tables
-			for (String table : dimTables) {
-				dwDb.truncateTable(table);
-			}
-			for (String table : factTables) {
-				dwDb.truncateTable(table);
-			}
-		} catch (Exception e) {
+			// Fill the dimension data
+			StringBuilder query = new StringBuilder();
+			query.append("insert into dim_concept (surrogate_id, implementation_id, concept_id, full_name, concept, description, retired, data_type, class, creator, date_created, version, changed_by, date_changed, uuid)");
+			query.append("select c.surrogate_id, c.implementation_id, c.concept_id, n1.name as full_name, n2.name as concept, d.description, c.retired, dt.name as data_type, cl.name as class, c.creator, c.date_created, c.version, c.changed_by, c.date_changed, c.uuid from concept as c ");
+			query.append("left outer join concept_datatype as dt on dt.implementation_id = c.implementation_id and dt.concept_datatype_id = c.datatype_id ");
+			query.append("left outer join concept_class as cl on cl.implementation_id = c.implementation_id and cl.concept_class_id = c.class_id ");
+			query.append("left outer join concept_name as n1 on n1.implementation_id = c.implementation_id and n1.concept_id = c.concept_id and n1.locale = 'en' and n1.voided = 0 and n1.concept_name_type = 'FULLY_SPECIFIED' ");
+			query.append("left outer join concept_name as n2 on n2.implementation_id = c.implementation_id and n2.concept_id = c.concept_id and n2.locale = 'en' and n2.voided = 0 and n2.concept_name_type <> 'FULLY_SPECIFIED' ");
+			query.append("left outer join concept_description as d on d.implementation_id = c.implementation_id and d.concept_id = c.concept_id and d.locale = 'en'");
+			log.warning("Inserting new concepts to dimension.");
+			dwDb.runCommand(CommandType.INSERT, query.toString());
+			query = new StringBuilder("update dim_concept set full_name = 'Yes', concept = 'Yes' where concept_id = 1");
+			dwDb.runCommand(CommandType.UPDATE, query.toString());
+			query = new StringBuilder("update dim_concept set full_name = 'No', concept = 'No' where concept_id = 2");
+			dwDb.runCommand(CommandType.UPDATE, query.toString());
+
+			query = new StringBuilder();
+			query.append("");
+			
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
 	}

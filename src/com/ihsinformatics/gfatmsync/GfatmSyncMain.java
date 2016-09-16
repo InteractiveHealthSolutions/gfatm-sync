@@ -48,7 +48,7 @@ public class GfatmSyncMain {
 	public static void main(String[] args) {
 		GfatmSyncMain gfatm = new GfatmSyncMain();
 		gfatm.readProperties();
-		//gfatm.loadData();
+		// gfatm.loadData();
 		gfatm.dimensionModeling(true);
 		System.exit(0);
 	}
@@ -112,13 +112,15 @@ public class GfatmSyncMain {
 			StringBuilder query = new StringBuilder();
 			// Fill in datetime dimension table
 			// Detect the last date in dimension and begin from there
-			Object lastSqlDate = dwDb.runCommand(CommandType.SELECT, "select max(full_date) as latest from dim_datetime");
+			Object lastSqlDate = dwDb.runCommand(CommandType.SELECT,
+					"select max(full_date) as latest from dim_datetime");
 			Calendar start = Calendar.getInstance();
 			start.set(Calendar.YEAR, 2000);
 			start.set(Calendar.MONTH, Calendar.JANUARY);
 			start.set(Calendar.DATE, 1);
 			if (lastSqlDate != null) {
-				Date latestDate = DateTimeUtil.getDateFromString(lastSqlDate.toString(), DateTimeUtil.SQL_DATETIME);
+				Date latestDate = DateTimeUtil.getDateFromString(
+						lastSqlDate.toString(), DateTimeUtil.SQL_DATETIME);
 				start.setTime(latestDate);
 			}
 			start.add(Calendar.DATE, 1);
@@ -126,7 +128,8 @@ public class GfatmSyncMain {
 			end.set(Calendar.HOUR, 0);
 			query = new StringBuilder("insert into dim_datetime values ");
 			while (start.getTime().before(end.getTime())) {
-				String sqlDate = "'" + DateTimeUtil.getSqlDate(start.getTime()) + "'";
+				String sqlDate = "'" + DateTimeUtil.getSqlDate(start.getTime())
+						+ "'";
 				query.append("(0, " + sqlDate + ", ");
 				query.append("year(" + sqlDate + "), ");
 				query.append("month(" + sqlDate + "), ");
@@ -158,13 +161,15 @@ public class GfatmSyncMain {
 			dwDb.runCommand(CommandType.UPDATE, query.toString());
 
 			// Fill the location dimension data
-			query = new StringBuilder("insert ignore into dim_location (surrogate_id, system_id, location_id, location_name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, etired, parent_location, uuid) ");
+			query = new StringBuilder(
+					"insert ignore into dim_location (surrogate_id, implementation_id, location_id, location_name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, retired, parent_location, uuid) ");
 			query.append("select l.surrogate_id, l.implementation_id, l.location_id, l.name as location_name, l.description, l.address1, l.address2, l.city_village, l.state_province, l.postal_code, l.country, l.latitude, l.longitude, l.creator, l.date_created, l.retired, l.parent_location, l.uuid from location as l ");
 			log.info("Inserting new locations to dimension.");
 			dwDb.runCommand(CommandType.INSERT, query.toString());
 
 			// Fill the user dimension data
-			query = new StringBuilder("insert ignore into dim_user (surrogate_id, implementation_id, user_id, username, person_id, identifier, secret_question, secret_answer, creator, date_created, changed_by, date_changed, retired, retire_reason, uuid) ");
+			query = new StringBuilder(
+					"insert ignore into dim_user (surrogate_id, implementation_id, user_id, username, person_id, identifier, secret_question, secret_answer, creator, date_created, changed_by, date_changed, retired, retire_reason, uuid) ");
 			query.append("select u.surrogate_id, u.implementation_id, u.user_id, u.username, u.person_id, p.identifier, u.secret_question, u.secret_answer, u.creator, u.date_created, u.changed_by, u.date_changed, u.retired, u.retire_reason, u.uuid from users as u ");
 			query.append("left outer join provider as p on p.implementation_id = u.implementation_id and p.person_id = u.person_id");
 			log.info("Inserting new users to dimension.");
@@ -172,48 +177,65 @@ public class GfatmSyncMain {
 
 			// Collect latest patient identifiers
 			log.info("Setting preferred identifiers to OpenMRS ID (with check digit).");
-			dwDb.runCommand(CommandType.UPDATE, "update patient_identifier set preferred = 1 where identifier_type = 3");
+			dwDb.runCommand(CommandType.UPDATE,
+					"update patient_identifier set preferred = 1 where identifier_type = 3");
 			log.info("Setting identifiers other than OpenMRS ID to non-preferred.");
-			dwDb.runCommand(CommandType.UPDATE, "update patient_identifier set preferred = 0 where identifier_type <> 3");
+			dwDb.runCommand(CommandType.UPDATE,
+					"update patient_identifier set preferred = 0 where identifier_type <> 3");
 			log.info("Selecting patient identifiers.");
-			dwDb.runCommand(CommandType.DROP, "drop table if exists patient_latest_identifier");
+			dwDb.runCommand(CommandType.DROP,
+					"drop table if exists patient_latest_identifier");
 			query = new StringBuilder("create table patient_latest_identifier ");
 			query.append("select * from patient_identifier as a having a.patient_id = (select max(patient_id) from patient_identifier where implementation_id = a.implementation_id and patient_id = a.patient_id and preferred = 1 and voided = 0) union ");
 			query.append("select * from patient_identifier as a having a.patient_id = (select max(patient_id) from patient_identifier where implementation_id = a.implementation_id and patient_id = a.patient_id and preferred = 0 and voided = 0)");
 			dwDb.runCommand(CommandType.CREATE, query.toString());
-			dwDb.runCommand(CommandType.ALTER, "alter table patient_latest_identifier add primary key surrogate_id (surrogate_id)");
+			dwDb.runCommand(
+					CommandType.ALTER,
+					"alter table patient_latest_identifier add primary key surrogate_id (surrogate_id)");
 
 			// Collect latest person names
 			log.info("Selecting people names (preferred/latest).");
-			dwDb.runCommand(CommandType.DROP, "drop table if exists person_latest_name");
+			dwDb.runCommand(CommandType.DROP,
+					"drop table if exists person_latest_name");
 			query = new StringBuilder("create table person_latest_name ");
 			query.append("select * from person_name as a where a.person_name_id = (select max(person_name_id) from person_name where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 1)");
 			dwDb.runCommand(CommandType.CREATE, query.toString());
 			query = new StringBuilder("insert into person_latest_name ");
 			query.append("select * from person_name as a where a.person_name_id = (select max(person_name_id) from person_name where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 0)");
 			dwDb.runCommand(CommandType.INSERT, query.toString());
-			dwDb.runCommand(CommandType.ALTER, "alter table person_latest_name add primary key surrogate_id (surrogate_id)");
+			dwDb.runCommand(CommandType.ALTER,
+					"alter table person_latest_name add primary key surrogate_id (surrogate_id)");
 
 			// Collect latest person addresses
 			log.info("Selecting people addresses (preferred/latest).");
-			dwDb.runCommand(CommandType.DROP, "drop table if exists person_latest_address");
+			dwDb.runCommand(CommandType.DROP,
+					"drop table if exists person_latest_address");
 			query = new StringBuilder("create table person_latest_address ");
 			query.append("select * from person_address as a where a.person_address_id = (select max(person_address_id) from person_address where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 1)");
 			dwDb.runCommand(CommandType.CREATE, query.toString());
 			query = new StringBuilder("insert into person_latest_address ");
 			query.append("select * from person_address as a where a.person_address_id = (select max(person_address_id) from person_address where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 0)");
 			dwDb.runCommand(CommandType.INSERT, query.toString());
-			dwDb.runCommand(CommandType.ALTER, "alter table person_latest_address add primary key surrogate_id (surrogate_id)");
+			dwDb.runCommand(CommandType.ALTER,
+					"alter table person_latest_address add primary key surrogate_id (surrogate_id)");
 
 			// Recreate person attributes
 			log.info("Transforming people attribute.");
-			dwDb.runCommand(CommandType.DROP, "drop table if exists person_attribute_merged");
-			Object[][] attributeTypes = dwDb.getTableData("person_attribute_type", "person_attribute_type_id,name", null, true);
+			dwDb.runCommand(CommandType.DROP,
+					"drop table if exists person_attribute_merged");
+			Object[][] attributeTypes = dwDb.getTableData(
+					"person_attribute_type", "person_attribute_type_id,name",
+					null, true);
 			StringBuilder groupConcat = new StringBuilder();
 			for (Object[] type : attributeTypes) {
 				String typeId = type[0].toString();
-				String typeName = type[1].toString().replace(" ", "_").replace("'", "").replace("(\\W|^_)*", "_").toLowerCase();
-				groupConcat.append("group_concat(if(a.person_attribute_type_id = " + typeId + ", a.value, null)) as " + typeName + ", ");
+				String typeName = type[1].toString().replace(" ", "_")
+						.replace("'", "").replace("(\\W|^_)*", "_")
+						.toLowerCase();
+				groupConcat
+						.append("group_concat(if(a.person_attribute_type_id = "
+								+ typeId + ", a.value, null)) as " + typeName
+								+ ", ");
 			}
 			groupConcat.append("'' as BLANK ");
 			query = new StringBuilder("create table person_attribute_merged ");
@@ -222,7 +244,43 @@ public class GfatmSyncMain {
 			query.append("from person_attribute as a where a.voided = 0 ");
 			query.append("group by a.implementation_id, a.person_id");
 			dwDb.runCommand(CommandType.CREATE, query.toString());
-			dwDb.runCommand(CommandType.ALTER, "alter table person_attribute_merged add primary key (implementation_id, person_id)");
+			dwDb.runCommand(
+					CommandType.ALTER,
+					"alter table person_attribute_merged add primary key (implementation_id, person_id)");
+
+			// Fill the patient dimension data
+			query = new StringBuilder(
+					"insert ignore into dim_patient (surrogate_id, implementation_id, patient_id, identifier, secondary_identifier, gender, birthdate, birthdate_estimated, dead, first_name, middle_name, last_name, race, birthplace, citizenship, mother_name, civil_status, health_district, health_center, primary_mobile, secondary_mobile, primary_phone, secondary_phone, primary_mobile_owner, secondary_mobile_owner, primary_phone_owner, secondary_phone_owner, address1, address2, city_village, state_province, postal_code, country, creator, date_created, changed_by, date_changed, voided, uuid) ");
+			query.append("select p.surrogate_id, p.implementation_id, p.patient_id, i.identifier, pr.gender, pr.birthdate, pr.birthdate_estimated, pr.dead, n.given_name as first_name, n.middle_name, n.family_name as last_name, pa.*, a.address1, a.address2, a.city_village, a.state_province, a.postal_code, a.country, p.creator, p.date_created, p.changed_by, p.date_changed, p.voided, pr.uuid from patient as p ");
+			query.append("inner join person as pr on pr.implementation_id = p.implementation_id and pr.person_id = p.patient_id ");
+			query.append("left outer join patient_latest_identifier as i on i.implementation_id = p.implementation_id and i.patient_id = p.patient_id ");
+			query.append("left outer join person_latest_name as n on n.implementation_id = p.implementation_id and n.person_id = pr.person_id ");
+			query.append("left outer join person_latest_address as a on a.implementation_id = p.implementation_id and a.person_id = p.patient_id ");
+			query.append("left outer join person_attribute_merged as pa on pa.implementation_id = p.implementation_id and pa.person_id = p.patient_id ");
+			query.append("where p.voided = 0");
+			log.info("Inserting new patients to dimension.");
+			dwDb.runCommand(CommandType.INSERT, query.toString());
+
+			// Fill the encounter dimension data
+			query = new StringBuilder("insert ignore into dim_encounter ");
+			query.append("select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, et.name as encounter_name, et.description, e.patient_id, e.location_id, p.identifier as provider, e.encounter_datetime as date_entered, e.creator, e.date_created as date_start, e.changed_by, e.date_changed, e.date_created as date_end, e.uuid from encounter as e ");
+			query.append("inner join encounter_type as et on et.encounter_type_id = e.encounter_type ");
+			query.append("left outer join encounter_provider as ep on ep.encounter_id = e.encounter_id ");
+			query.append("left outer join provider as p on p.person_id = ep.provider_id ");
+			query.append("where e.voided = 0");
+			log.info("Inserting new encounters to dimension.");
+			dwDb.runCommand(CommandType.INSERT, query.toString());
+
+			// Fill the observation dimension data
+			query = new StringBuilder("insert ignore into dim_obs ");
+			query.append("select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, e.patient_id, p.identifier, e.provider, o.obs_id, o.concept_id, c.concept as question, obs_datetime, o.location_id, concat(ifnull(o.value_boolean, ''), ifnull(ifnull(c2.concept, c2.full_name), ''), ifnull(o.value_datetime, ''), ifnull(o.value_numeric, ''), ifnull(o.value_text, '')) as answer, o.value_boolean, o.value_coded, o.value_datetime, o.value_numeric, o.value_text, o.creator, o.date_created, o.voided, o.uuid from obs as o ");
+			query.append("inner join dim_concept as c on c.implementation_id = o.implementation_id and c.concept_id = o.concept_id ");
+			query.append("inner join dim_encounter as e on e.implementation_id = o.implementation_id and e.encounter_id = o.encounter_id ");
+			query.append("inner join dim_patient as p on p.implementation_id = e.implementation_id and p.patient_id = e.patient_id ");
+			query.append("left outer join dim_concept as c2 on c2.implementation_id = o.implementation_id and c2.concept_id = o.value_coded ");
+			query.append("where o.voided = 0");
+			log.info("Inserting new observations to dimension.");
+			dwDb.runCommand(CommandType.INSERT, query.toString());
 
 			log.info("Finished dimension modeling");
 
@@ -566,7 +624,7 @@ public class GfatmSyncMain {
 		dwDb.runCommand(CommandType.UPDATE, query.toString());
 		query = new StringBuilder();
 		query.append("UPDATE users AS a, " + database + ".users AS t ");
-		query.append("SET a.system_id = t.system_id, a.username = t.username, a.password = t.password, a.salt = t.salt, a.secret_question = t.secret_question, a.secret_answer = t.secret_answer, a.creator = t.creator, a.date_created = t.date_created, a.changed_by = t.changed_by, a.date_changed = t.date_changed, a.person_id = t.person_id, a.retired = t.retired, a.retired_by = t.retired_by, a.date_retired = t.date_retired, a.retire_reason = t.retire_reason ");
+		query.append("SET a.implementation_id = t.implementation_id, a.username = t.username, a.password = t.password, a.salt = t.salt, a.secret_question = t.secret_question, a.secret_answer = t.secret_answer, a.creator = t.creator, a.date_created = t.date_created, a.changed_by = t.changed_by, a.date_changed = t.date_changed, a.person_id = t.person_id, a.retired = t.retired, a.retired_by = t.retired_by, a.date_retired = t.date_retired, a.retire_reason = t.retire_reason ");
 		query.append("WHERE a.user_id = t.user_id AND a.uuid = t.uuid");
 		dwDb.runCommand(CommandType.UPDATE, query.toString());
 		query = new StringBuilder();

@@ -4,12 +4,21 @@
 package com.ihsinformatics.gfatmsync;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.EventQueue;
 import java.awt.Toolkit;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.text.ParseException;
+import java.util.Date;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.swing.ComboBoxModel;
 import javax.swing.DefaultComboBoxModel;
@@ -22,12 +31,16 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JProgressBar;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JTextPane;
 import javax.swing.JToggleButton;
 import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyleContext;
 
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
@@ -38,46 +51,68 @@ import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.impl.StdSchedulerFactory;
 
+import com.ihsinformatics.util.DateTimeUtil;
 import com.ihsinformatics.util.RegexUtil;
+import com.ihsinformatics.util.VersionUtil;
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.FormSpecs;
 import com.jgoodies.forms.layout.RowSpec;
+import javax.swing.JTabbedPane;
 
 /**
  * @author owais.hussain@ihsinformatics.com
  *
  */
 public class GfatmSyncUi {
-	private JFrame mainFrame = new JFrame();
 
-	private JLabel lblServerAddress = new JLabel("Server Address:");
-	private JLabel lblUsername = new JLabel("Username:");
-	private JLabel lblPassword = new JLabel("Password:");
-	private JLabel lblDataToSynchronize = new JLabel("Data to Synchronize:");
-	private JLabel lblSynchronizationOption = new JLabel(
+	private static final Logger log = Logger.getLogger(Class.class.getName());
+	private static final VersionUtil version = new VersionUtil();
+	private static String propertiesFile = "res/gfatm-sync.properties";
+	private static Properties props;
+
+	private final JFrame mainFrame = new JFrame();
+	private final JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+	private final JPanel serverPanel = new JPanel();
+	private final JPanel clientPanel = new JPanel();
+
+	private final JLabel lblServerAddress = new JLabel("Server Address:");
+	private final JLabel lblServerUsername = new JLabel("Username:");
+	private final JLabel lblServerPassword = new JLabel("Password:");
+	private final JLabel lblLocalAddress = new JLabel("Local Address:");
+	private final JLabel lblLocalUsername = new JLabel("Username:");
+	private final JLabel lblLocalPassword = new JLabel("Password:");
+	private final JLabel lblDataToSynchronize = new JLabel(
+			"Data to Synchronize:");
+	private final JLabel lblSynchronizationOption = new JLabel(
 			"Synchronization Option:");
-	private JLabel lblProgress = new JLabel("Progress:");
-	private JLabel lblStatus = new JLabel("Status:");
-	private JLabel syncStatusLabel = new JLabel("STOPPED");
+	private final JLabel lblProgress = new JLabel("Progress:");
+	private final JLabel lblStatus = new JLabel("Status:");
+	private final JLabel syncStatusLabel = new JLabel("STOPPED");
 
-	private JTextField serverAddressTextField = new JTextField();
-	private JTextField usernameTextField = new JTextField();
-	private JPasswordField passwordTextField = new JPasswordField();
-	private JTextArea logTextArea = new JTextArea();
+	private final JTextField serverAddressTextField = new JTextField();
+	private final JTextField serverUsernameTextField = new JTextField();
+	private final JPasswordField serverPasswordField = new JPasswordField();
+	private final JTextField localAddressTextField = new JTextField();
+	private final JTextField localUsernameTextField = new JTextField();
+	private final JPasswordField localPasswordField = new JPasswordField();
+	private static final JTextPane logTextPane = new JTextPane();
 
-	private JComboBox<String> syncOptionComboBox = new JComboBox<String>();
+	private final JComboBox<String> syncOptionComboBox = new JComboBox<String>();
 
-	private JCheckBox usersCheckBox = new JCheckBox("Users and Attributes");
-	private JCheckBox locationsCheckBox = new JCheckBox(
+	private final JCheckBox usersCheckBox = new JCheckBox(
+			"Users and Attributes");
+	private final JCheckBox locationsCheckBox = new JCheckBox(
 			"Locations and Attributes");
-	private JCheckBox conceptsCheckBox = new JCheckBox(
+	private final JCheckBox conceptsCheckBox = new JCheckBox(
 			"Concepts and Form Types");
-	private JCheckBox otherMetadataCheckBox = new JCheckBox("Other Metadata");
+	private final JCheckBox otherMetadataCheckBox = new JCheckBox(
+			"Other Metadata");
 
-	private JProgressBar progressBar = new JProgressBar();
+	private static final JProgressBar progressBar = new JProgressBar();
 
-	private JToggleButton synchronizeButton = new JToggleButton("Synchronize");
+	private final JToggleButton synchronizeButton = new JToggleButton(
+			"Synchronize");
 
 	private static SyncStatus currentStatus = SyncStatus.STOPPED;
 
@@ -109,10 +144,56 @@ public class GfatmSyncUi {
 	}
 
 	/**
+	 * Record log in log file as well as text pane in colour coded form
+	 * 
+	 * @param message
+	 * @param level
+	 */
+	public static void log(String message, Level level) {
+		log.log(level, message);
+		if (logTextPane != null) {
+
+			Color colour = Color.BLUE;
+			if (level.getName().equalsIgnoreCase(Level.WARNING.getName())) {
+				colour = Color.ORANGE;
+			} else if (level.getName().equalsIgnoreCase(Level.SEVERE.getName())) {
+				colour = Color.RED;
+			} else if (level.getName().equalsIgnoreCase(Level.FINE.getName())) {
+				colour = Color.RED;
+			}
+			StyleContext sc = StyleContext.getDefaultStyleContext();
+			AttributeSet aset = sc.addAttribute(SimpleAttributeSet.EMPTY,
+					StyleConstants.Foreground, colour);
+			aset = sc.addAttribute(aset, StyleConstants.FontFamily,
+					"Lucida Console");
+			aset = sc.addAttribute(aset, StyleConstants.Alignment,
+					StyleConstants.ALIGN_JUSTIFIED);
+			int len = logTextPane.getDocument().getLength();
+			logTextPane.setCaretPosition(len);
+			logTextPane.setCharacterAttributes(aset, false);
+			logTextPane.replaceSelection(DateTimeUtil
+					.getSqlDateTime(new Date()) + ":\t" + message);
+		}
+	}
+
+	public static void resetProgressBar(int min, int max) {
+		progressBar.setMinimum(min);
+		progressBar.setMaximum(max);
+		progressBar.updateUI();
+	}
+
+	public static void updateProgress() {
+		progressBar.setValue(progressBar.getValue() + 1);
+		progressBar.updateUI();
+	}
+
+	/**
 	 * Create the application.
 	 */
 	public GfatmSyncUi() {
 		initialize();
+		readProperties(propertiesFile);
+		log("Application initialized. Version " + version.toString(), Level.INFO);
 	}
 
 	/**
@@ -126,9 +207,59 @@ public class GfatmSyncUi {
 						.getImage(
 								GfatmSyncUi.class
 										.getResource("/com/sun/java/swing/plaf/windows/icons/Computer.gif")));
-		mainFrame.setBounds(100, 100, 390, 400);
+		mainFrame.setBounds(100, 100, 400, 435);
 		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+		mainFrame.getContentPane().add(tabbedPane, BorderLayout.NORTH);
+
+		tabbedPane.addTab("Server Connection", null, serverPanel, null);
+		serverPanel.setLayout(new FormLayout(new ColumnSpec[] {
+				FormSpecs.RELATED_GAP_COLSPEC, ColumnSpec.decode("87px"),
+				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
+				ColumnSpec.decode("30px"),
+				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
+				ColumnSpec.decode("65px"),
+				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
+				ColumnSpec.decode("59px"),
+				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
+				ColumnSpec.decode("110px"), }, new RowSpec[] {
+				FormSpecs.LINE_GAP_ROWSPEC, RowSpec.decode("28px"),
+				FormSpecs.LINE_GAP_ROWSPEC, RowSpec.decode("28px"), }));
+		serverPanel.add(lblServerAddress, "2, 2, left, center");
+		serverPanel.add(serverAddressTextField, "4, 2, 7, 1, fill, top");
+		serverAddressTextField
+				.setText("jdbc:mysql://202.141.249.106:6848/openmrs");
+		serverAddressTextField.setColumns(24);
+		serverPanel.add(lblServerUsername, "2, 4, left, center");
+		serverPanel.add(serverUsernameTextField, "4, 4, 3, 1, left, top");
+		serverUsernameTextField.setText("gfatm_user");
+		serverUsernameTextField.setColumns(8);
+		serverPanel.add(lblServerPassword, "8, 4, left, center");
+		serverPanel.add(serverPasswordField, "10, 4, fill, top");
+
+		tabbedPane.addTab("Local Connection", null, clientPanel, null);
+		clientPanel.setLayout(new FormLayout(new ColumnSpec[] {
+				FormSpecs.RELATED_GAP_COLSPEC, ColumnSpec.decode("87px"),
+				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
+				ColumnSpec.decode("30px"),
+				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
+				ColumnSpec.decode("72px"),
+				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
+				ColumnSpec.decode("59px"),
+				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
+				ColumnSpec.decode("108px"), }, new RowSpec[] {
+				FormSpecs.LINE_GAP_ROWSPEC, RowSpec.decode("28px"),
+				FormSpecs.LINE_GAP_ROWSPEC, RowSpec.decode("28px"), }));
+		clientPanel.add(lblLocalAddress, "2, 2, left, center");
+		localAddressTextField.setText("jdbc:mysql://localhost:3306/openmrs");
+		localAddressTextField.setColumns(24);
+		clientPanel.add(localAddressTextField, "4, 2, 7, 1, fill, top");
+		clientPanel.add(lblLocalUsername, "2, 4, left, center");
+		localUsernameTextField.setText("openmrs_user");
+		localUsernameTextField.setColumns(8);
+		clientPanel.add(localUsernameTextField, "4, 4, 3, 1, left, top");
+		clientPanel.add(lblLocalPassword, "8, 4, left, center");
+		clientPanel.add(localPasswordField, "10, 4, fill, top");
 		JPanel centerPanel = new JPanel();
 		mainFrame.getContentPane().add(centerPanel, BorderLayout.CENTER);
 		centerPanel.setLayout(new FormLayout(new ColumnSpec[] {
@@ -145,9 +276,7 @@ public class GfatmSyncUi {
 				ColumnSpec.decode("25px"),
 				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
 				ColumnSpec.decode("56px"), },
-				new RowSpec[] { FormSpecs.LINE_GAP_ROWSPEC,
-						RowSpec.decode("28px"), FormSpecs.LINE_GAP_ROWSPEC,
-						RowSpec.decode("28px"), FormSpecs.RELATED_GAP_ROWSPEC,
+				new RowSpec[] { FormSpecs.RELATED_GAP_ROWSPEC,
 						FormSpecs.DEFAULT_ROWSPEC,
 						FormSpecs.RELATED_GAP_ROWSPEC,
 						FormSpecs.DEFAULT_ROWSPEC,
@@ -161,34 +290,26 @@ public class GfatmSyncUi {
 						FormSpecs.DEFAULT_ROWSPEC,
 						FormSpecs.RELATED_GAP_ROWSPEC,
 						RowSpec.decode("default:grow"), }));
-
-		centerPanel.add(lblServerAddress, "2, 2, 3, 1, left, center");
-		serverAddressTextField.setText("jdbc:mysql://localhost:3306/gfatm_dw");
-		centerPanel.add(serverAddressTextField, "6, 2, 9, 1, left, top");
-		serverAddressTextField.setColumns(24);
-		centerPanel.add(lblUsername, "2, 4, fill, center");
-		usernameTextField.setText("gfatm_user");
-		centerPanel.add(usernameTextField, "4, 4, 3, 1, left, top");
-		usernameTextField.setColumns(8);
-		centerPanel.add(lblPassword, "8, 4, right, center");
-		centerPanel.add(passwordTextField, "10, 4, 5, 1, fill, default");
-		centerPanel.add(lblDataToSynchronize, "2, 6, 5, 1");
-		centerPanel.add(usersCheckBox, "2, 8, 5, 1");
-		centerPanel.add(conceptsCheckBox, "8, 8, 7, 1");
-		centerPanel.add(locationsCheckBox, "2, 10, 5, 1");
-		centerPanel.add(otherMetadataCheckBox, "8, 10, 7, 1");
-		centerPanel.add(lblSynchronizationOption, "2, 12, 5, 1");
-		centerPanel.add(synchronizeButton, "8, 14, 7, 1");
+		centerPanel.add(lblDataToSynchronize, "2, 2, 5, 1");
+		usersCheckBox.setSelected(true);
+		centerPanel.add(usersCheckBox, "2, 4, 5, 1");
+		centerPanel.add(conceptsCheckBox, "8, 4, 7, 1");
+		locationsCheckBox.setSelected(true);
+		centerPanel.add(locationsCheckBox, "2, 6, 5, 1");
+		centerPanel.add(otherMetadataCheckBox, "8, 6, 7, 1");
+		centerPanel.add(lblSynchronizationOption, "2, 8, 5, 1");
+		centerPanel.add(synchronizeButton, "8, 10, 7, 1");
 		ComboBoxModel<String> comboBoxModel = new DefaultComboBoxModel<String>(
 				new String[] { "Every 6 hours", "Twice a day", "Daily" });
 		syncOptionComboBox.setModel(comboBoxModel);
-		centerPanel.add(syncOptionComboBox, "2, 14, 5, 1, fill, default");
-		centerPanel.add(lblProgress, "2, 16");
-		centerPanel.add(progressBar, "4, 16, 3, 1");
-		centerPanel.add(lblStatus, "8, 16");
-		centerPanel.add(syncStatusLabel, "10, 16, 5, 1");
-		logTextArea.setEditable(false);
-		centerPanel.add(logTextArea, "2, 18, 13, 1, fill, fill");
+		centerPanel.add(syncOptionComboBox, "2, 10, 5, 1, fill, default");
+		centerPanel.add(lblProgress, "2, 12");
+		progressBar.setStringPainted(true);
+		centerPanel.add(progressBar, "4, 12, 3, 1");
+		centerPanel.add(lblStatus, "8, 12");
+		centerPanel.add(syncStatusLabel, "10, 12, 5, 1");
+		logTextPane.setEditable(false);
+		centerPanel.add(logTextPane, "2, 14, 13, 1, fill, fill");
 		synchronizeButton.addChangeListener(new ChangeListener() {
 			public void stateChanged(ChangeEvent event) {
 				JToggleButton button = (JToggleButton) event.getSource();
@@ -198,7 +319,7 @@ public class GfatmSyncUi {
 						try {
 							synchronize();
 						} catch (SchedulerException e) {
-							e.printStackTrace();
+							log(e.getMessage(), Level.SEVERE);
 						}
 					} else {
 						synchronizeButton.setSelected(false);
@@ -209,10 +330,42 @@ public class GfatmSyncUi {
 		});
 	}
 
+	/**
+	 * Read properties from properties file
+	 */
+	public void readProperties(String propertiesFile) {
+		try {
+			InputStream propFile = new FileInputStream(propertiesFile);
+			if (propFile != null) {
+				props = new Properties();
+				props.load(propFile);
+				String versionStr = props.getProperty("app.version");
+				version.parseVersion(versionStr);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			log("Properties file not found or is inaccessible.", Level.SEVERE);
+		} catch (NumberFormatException e) {
+			e.printStackTrace();
+			log("Invalid version in properties file.", Level.WARNING);
+		} catch (NullPointerException e) {
+			e.printStackTrace();
+			log("Version not found in properties file.", Level.WARNING);
+		} catch (ParseException e) {
+			e.printStackTrace();
+			log("Bad version name found in properties file.", Level.WARNING);
+		}
+	}
+
+	/**
+	 * Set synchronization mode
+	 * 
+	 * @param syncStatus
+	 */
 	private void setMode(SyncStatus syncStatus) {
-		JComponent[] fields = { serverAddressTextField, usernameTextField,
-				passwordTextField, usersCheckBox, locationsCheckBox,
-				conceptsCheckBox, otherMetadataCheckBox };
+		JComponent[] fields = { serverAddressTextField,
+				serverUsernameTextField, serverPasswordField, usersCheckBox,
+				locationsCheckBox, conceptsCheckBox, otherMetadataCheckBox };
 		currentStatus = syncStatus;
 		syncStatusLabel.setText(currentStatus.toString());
 		switch (currentStatus) {
@@ -236,41 +389,65 @@ public class GfatmSyncUi {
 	private boolean validate() {
 		boolean valid = true;
 		StringBuilder error = new StringBuilder();
-		String server = serverAddressTextField.getText();
-		String username = usernameTextField.getText();
-		String password = String.valueOf(passwordTextField.getPassword());
+		String serverUrl = serverAddressTextField.getText();
+		String serverUsername = serverUsernameTextField.getText();
+		String serverPassword = String.valueOf(serverPasswordField
+				.getPassword());
+		String localUrl = localAddressTextField.getText();
+		String localUsername = localUsernameTextField.getText();
+		String localPassword = String.valueOf(localPasswordField.getPassword());
 		boolean usersChecked = usersCheckBox.isSelected();
 		boolean locationsChecked = locationsCheckBox.isSelected();
 		boolean conceptsChecked = conceptsCheckBox.isSelected();
 		boolean otherMetadataChecked = otherMetadataCheckBox.isSelected();
 		// Check mandatory fields
-		if (server.equals("")) {
+		if (serverUrl.equals("")) {
 			error.append("Server Address cannot be empty.\n");
 		}
-		if (username.equals("")) {
-			error.append("Username cannot be empty.\n");
+		if (serverUsername.equals("")) {
+			error.append("Server Username cannot be empty.\n");
 		}
-		if (password.equals("")) {
-			error.append("Password cannot be empty.\n");
+		if (serverPassword.equals("")) {
+			error.append("Server Password cannot be empty.\n");
 		}
-		if (usersChecked == locationsChecked == conceptsChecked == otherMetadataChecked == false) {
+		if (localUrl.equals("")) {
+			error.append("Local Address cannot be empty.\n");
+		}
+		if (localUsername.equals("")) {
+			error.append("Local Username cannot be empty.\n");
+		}
+		if (localPassword.equals("")) {
+			error.append("Local Password cannot be empty.\n");
+		}
+		if ((usersChecked | locationsChecked | conceptsChecked | otherMetadataChecked) == false) {
 			error.append("At least one option must be checked to synchronize.\n");
 		}
 		// Check data types
-		if (!RegexUtil.isWord(username)) {
-			error.append("Username is invalid.\n");
+		if (!RegexUtil.isWord(serverUsername)) {
+			error.append("Server Username is invalid.\n");
+		}
+		if (!RegexUtil.isWord(localUsername)) {
+			error.append("Local Username is invalid.\n");
 		}
 		// Try connection
 		try {
-			Connection conn = DriverManager.getConnection(server, username,
-					password);
+			Connection conn = DriverManager.getConnection(serverUrl,
+					serverUsername, serverPassword);
 			Class.forName("com.mysql.jdbc.Driver");
 			Statement stmt = conn.createStatement();
 			String sql = "select vesion()";
 			ResultSet rs = stmt.executeQuery(sql);
 			Object object = rs.getObject(1);
 			if (object == null) {
-				error.append("Cannot connect with the Server.\n");
+				error.append("Cannot connect with the Server. Please check server connection URL and credentials.\n");
+			}
+			conn = DriverManager.getConnection(localUrl, localUsername,
+					localPassword);
+			stmt = conn.createStatement();
+			rs = stmt.executeQuery(sql);
+			object = rs.getObject(1);
+			if (object == null) {
+				error.append("Cannot connect with the Local database. Please check local connection URL and credentials.\n");
 			}
 		} catch (Exception e) {
 		}
@@ -282,6 +459,11 @@ public class GfatmSyncUi {
 		return valid;
 	}
 
+	/**
+	 * Starts synchronization schedule
+	 * 
+	 * @throws SchedulerException
+	 */
 	private void synchronize() throws SchedulerException {
 		int interval = -1;
 		switch (syncOptionComboBox.getSelectedIndex()) {
@@ -294,15 +476,15 @@ public class GfatmSyncUi {
 		default:
 			interval = 24;
 		}
-		JobDetail job = JobBuilder.newJob(SyncJob.class)
-				.withIdentity("syncJob", "group1").build();
-		TriggerBuilder<Trigger> triggerBuilder = TriggerBuilder.newTrigger();
-		SimpleScheduleBuilder scheduleBuilder = SimpleScheduleBuilder
-				.simpleSchedule().withIntervalInHours(interval).repeatForever();
-		Trigger trigger = triggerBuilder.withIdentity("syncTrigger", "group1")
-				.withSchedule(scheduleBuilder).build();
-		Scheduler scheduler = new StdSchedulerFactory().getScheduler();
+		Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
 		scheduler.start();
+		JobDetail job = JobBuilder.newJob(SyncJob.class)
+				.withIdentity("syncJob", "syncGroup").build();
+		SimpleScheduleBuilder scheduleBuilder = SimpleScheduleBuilder
+				.simpleSchedule().withIntervalInHours(interval);
+		Trigger trigger = TriggerBuilder.newTrigger()
+				.withIdentity("syncTrigger", "syncGroup")
+				.withSchedule(scheduleBuilder).build();
 		scheduler.scheduleJob(job, trigger);
 	}
 }

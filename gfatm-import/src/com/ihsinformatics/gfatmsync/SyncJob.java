@@ -1,6 +1,7 @@
 package com.ihsinformatics.gfatmsync;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -8,6 +9,7 @@ import java.sql.SQLException;
 import java.util.logging.Level;
 
 import org.quartz.Job;
+import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
@@ -16,36 +18,37 @@ import com.ihsinformatics.util.DatabaseUtil;
 
 public class SyncJob implements Job {
 
-	public String dataPath;
-	public String dwSchema;
-	public DatabaseUtil localDb;
-	public Boolean includeMetadata = true;
-	public String remoteSchema;
-	public DatabaseUtil remoteDb;
+	private DatabaseUtil localDb;
+	private DatabaseUtil remoteDb;
 
-	boolean syncUsers = false;
-	boolean syncLocations = false;
-	boolean syncConcepts = false;
-	boolean syncOtherMetadata;
-	int progressRange = 0;
+	private boolean syncUsers = false;
+	private boolean syncLocations = false;
+	private boolean syncConcepts = false;
+	private boolean syncOtherMetadata;
+	private int progressRange = 0;
 
-	public SyncJob(DatabaseUtil server, DatabaseUtil local, boolean syncUsers,
-			boolean syncLocations, boolean syncConcepts,
-			boolean syncOtherMetadata) {
-		this.remoteDb = server;
-		this.localDb = local;
-		this.syncUsers = syncUsers;
-		this.syncLocations = syncLocations;
-		this.syncConcepts = syncConcepts;
-		this.syncOtherMetadata = syncOtherMetadata;
+	public SyncJob() {
+	}
+	
+	public void initialize(SyncJob syncJob) {
+		localDb = syncJob.localDb;
+		remoteDb = syncJob.remoteDb;
+		syncUsers = syncJob.syncUsers;
+		syncLocations = syncJob.syncLocations;
+		syncConcepts = syncJob.syncConcepts;
+		syncOtherMetadata = syncJob.syncOtherMetadata;
+		progressRange = syncJob.progressRange;
 		// Maximum progress is the number of tables * 2 (insert and update)
 		progressRange = (syncUsers ? 16 : 0) + (syncLocations ? 10 : 0)
 				+ (syncConcepts ? 26 : 0) + (syncOtherMetadata ? 18 : 0);
+		GfatmSyncUi.resetProgressBar(0, progressRange);
 	}
 
 	public void execute(JobExecutionContext context)
 			throws JobExecutionException {
-		GfatmSyncUi.resetProgressBar(0, progressRange);
+		JobDataMap dataMap = context.getMergedJobDataMap();
+		SyncJob syncJob = (SyncJob) dataMap.get("syncJob");
+		initialize(syncJob);
 		// First, disable foreign key checks on local database
 		try {
 			localDb.runCommand(CommandType.SET, "SET FOREIGN_KEY_CHECKS=0");
@@ -304,19 +307,114 @@ public class SyncJob implements Job {
 		GfatmSyncUi.log("Executing: " + insertQuery + " " + selectQuery,
 				Level.INFO);
 		Connection remoteConnection = remoteDb.getConnection();
-		Connection localConnection = localDb.getConnection();
-		PreparedStatement source = remoteConnection
-				.prepareStatement(selectQuery);
-		PreparedStatement target = localConnection
-				.prepareStatement(insertQuery);
-		ResultSet data = source.executeQuery();
+		ResultSet data = remoteConnection.createStatement().executeQuery(selectQuery);
 		ResultSetMetaData metaData = data.getMetaData();
+		Connection localConnection = DriverManager.getConnection(localDb.getUrl(), localDb.getUsername(), localDb.getPassword());
 		while (data.next()) {
+			PreparedStatement target = localConnection.prepareStatement(insertQuery);
 			for (int i = 1; i <= metaData.getColumnCount(); i++) {
 				target.setString(i, data.getString(i));
 			}
 			target.executeUpdate();
 		}
 		GfatmSyncUi.updateProgress();
+	}
+
+	/**
+	 * @return the localDb
+	 */
+	public DatabaseUtil getLocalDb() {
+		return localDb;
+	}
+
+	/**
+	 * @param localDb the localDb to set
+	 */
+	public void setLocalDb(DatabaseUtil localDb) {
+		this.localDb = localDb;
+	}
+
+	/**
+	 * @return the remoteDb
+	 */
+	public DatabaseUtil getRemoteDb() {
+		return remoteDb;
+	}
+
+	/**
+	 * @param remoteDb the remoteDb to set
+	 */
+	public void setRemoteDb(DatabaseUtil remoteDb) {
+		this.remoteDb = remoteDb;
+	}
+
+	/**
+	 * @return the syncUsers
+	 */
+	public boolean isSyncUsers() {
+		return syncUsers;
+	}
+
+	/**
+	 * @param syncUsers the syncUsers to set
+	 */
+	public void setSyncUsers(boolean syncUsers) {
+		this.syncUsers = syncUsers;
+	}
+
+	/**
+	 * @return the syncLocations
+	 */
+	public boolean isSyncLocations() {
+		return syncLocations;
+	}
+
+	/**
+	 * @param syncLocations the syncLocations to set
+	 */
+	public void setSyncLocations(boolean syncLocations) {
+		this.syncLocations = syncLocations;
+	}
+
+	/**
+	 * @return the syncConcepts
+	 */
+	public boolean isSyncConcepts() {
+		return syncConcepts;
+	}
+
+	/**
+	 * @param syncConcepts the syncConcepts to set
+	 */
+	public void setSyncConcepts(boolean syncConcepts) {
+		this.syncConcepts = syncConcepts;
+	}
+
+	/**
+	 * @return the syncOtherMetadata
+	 */
+	public boolean isSyncOtherMetadata() {
+		return syncOtherMetadata;
+	}
+
+	/**
+	 * @param syncOtherMetadata the syncOtherMetadata to set
+	 */
+	public void setSyncOtherMetadata(boolean syncOtherMetadata) {
+		this.syncOtherMetadata = syncOtherMetadata;
+	}
+
+	/**
+	 * @return the progressRange
+	 */
+	public int getProgressRange() {
+		return progressRange;
+	}
+
+	/**
+	 * @param progressRange the progressRange to set
+	 */
+	public void setProgressRange(int progressRange) {
+		this.progressRange = progressRange;
 	}
 }

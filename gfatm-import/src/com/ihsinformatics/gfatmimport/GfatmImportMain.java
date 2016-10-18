@@ -24,7 +24,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParseException;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -53,6 +52,7 @@ import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.quartz.Scheduler;
@@ -183,6 +183,8 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 				StyleConstants.setForeground(attrs, Color.RED);
 			} else if (level.getName().equalsIgnoreCase(Level.FINE.getName())) {
 				StyleConstants.setForeground(attrs, Color.GREEN);
+			} else {
+				StyleConstants.setForeground(attrs, Color.BLUE);
 			}
 			try {
 				styledDoc.insertString(styledDoc.getLength(),
@@ -287,18 +289,16 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 				FormSpecs.RELATED_GAP_COLSPEC,
 				ColumnSpec.decode("max(120dlu;default):grow"),
 				FormSpecs.RELATED_GAP_COLSPEC,
-				ColumnSpec.decode("max(140dlu;default):grow"),},
-			new RowSpec[] {
-				FormSpecs.RELATED_GAP_ROWSPEC,
-				FormSpecs.DEFAULT_ROWSPEC,
-				FormSpecs.RELATED_GAP_ROWSPEC,
-				FormSpecs.MIN_ROWSPEC,
-				FormSpecs.RELATED_GAP_ROWSPEC,
-				FormSpecs.DEFAULT_ROWSPEC,
-				FormSpecs.RELATED_GAP_ROWSPEC,
-				FormSpecs.DEFAULT_ROWSPEC,
-				FormSpecs.RELATED_GAP_ROWSPEC,
-				RowSpec.decode("default:grow"),}));
+				ColumnSpec.decode("max(140dlu;default):grow"), },
+				new RowSpec[] { FormSpecs.RELATED_GAP_ROWSPEC,
+						FormSpecs.DEFAULT_ROWSPEC,
+						FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.MIN_ROWSPEC,
+						FormSpecs.RELATED_GAP_ROWSPEC,
+						FormSpecs.DEFAULT_ROWSPEC,
+						FormSpecs.RELATED_GAP_ROWSPEC,
+						FormSpecs.DEFAULT_ROWSPEC,
+						FormSpecs.RELATED_GAP_ROWSPEC,
+						RowSpec.decode("default:grow"), }));
 		centerPanel.add(lblDataToImport, "2, 2, 5, 1");
 		centerPanel.add(optionsPanel, "2, 4, 5, 1, left, fill");
 		usersCheckBox.setSelected(true);
@@ -334,7 +334,8 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 		localUrlTextField.addKeyListener(this);
 		localDriverTextField.addKeyListener(this);
 		localDatabaseTextField.addKeyListener(this);
-		localUsernameTextField.addKeyListener(this);;
+		localUsernameTextField.addKeyListener(this);
+		;
 	}
 
 	/**
@@ -408,25 +409,21 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 	public void setMode(ImportStatus importStatus) {
 		Component[] clientComponents = clientPanel.getComponents();
 		Component[] serverComponents = serverPanel.getComponents();
-		Component[] otherComponents = {importOptionComboBox, usersCheckBox, locationsCheckBox, conceptsCheckBox, otherMetadataCheckBox};
-		
+		Component[] otherComponents = { importOptionComboBox, usersCheckBox,
+				locationsCheckBox, conceptsCheckBox, otherMetadataCheckBox };
+		Component[] all = ArrayUtils.addAll(clientComponents, serverComponents);
+		all = ArrayUtils.addAll(all, otherComponents);
 		switch (importStatus) {
 		case STOPPED:
 			log(importStatus.toString(), Level.WARNING);
-			for (Component field : clientComponents) {
-				field.setEnabled(true);
-			}
-			for (Component field : serverComponents) {
+			for (Component field : all) {
 				field.setEnabled(true);
 			}
 			break;
 		case IMPORTING:
 		case WAITING:
 			log(importStatus.toString(), Level.INFO);
-			for (Component field : clientComponents) {
-				field.setEnabled(false);
-			}
-			for (Component field : serverComponents) {
+			for (Component field : all) {
 				field.setEnabled(false);
 			}
 			break;

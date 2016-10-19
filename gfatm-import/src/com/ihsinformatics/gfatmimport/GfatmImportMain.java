@@ -202,8 +202,8 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 		progressBar.setValue(0);
 	}
 
-	public void updateProgress() {
-		progressBar.setValue(progressBar.getValue() + 1);
+	public void updateProgress(int increment) {
+		progressBar.setValue(progressBar.getValue() + increment);
 	}
 
 	/**

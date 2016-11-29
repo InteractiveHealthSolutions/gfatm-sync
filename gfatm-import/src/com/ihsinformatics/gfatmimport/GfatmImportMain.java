@@ -17,13 +17,13 @@ import java.awt.FlowLayout;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParseException;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -46,6 +46,8 @@ import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.JToggleButton;
 import javax.swing.UIManager;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.JTextComponent;
 import javax.swing.text.SimpleAttributeSet;
@@ -53,6 +55,9 @@ import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.jdatepicker.impl.JDatePanelImpl;
+import org.jdatepicker.impl.JDatePickerImpl;
+import org.jdatepicker.impl.UtilDateModel;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.quartz.Scheduler;
@@ -75,11 +80,14 @@ import com.jgoodies.forms.layout.RowSpec;
  * @author owais.hussain@ihsinformatics.com
  *
  */
-public class GfatmImportMain implements ActionListener, KeyListener {
+public class GfatmImportMain implements ActionListener {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
 	private static final VersionUtil version = new VersionUtil();
-	private static String propertiesFile = "res/gfatm-import.properties";
+	private static final String userHome = System.getProperty("user.home")
+			+ System.getProperty("file.separator") + "gfatm";
+	private static String propertiesFile = userHome
+			+ System.getProperty("file.separator") + "gfatm-import.properties";
 	private static Properties props;
 	private static String title = "GFATM Import";
 	private static Scheduler scheduler;
@@ -131,10 +139,14 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 			"Concepts and Form Types");
 	private final JCheckBox otherMetadataCheckBox = new JCheckBox(
 			"Other Metadata");
+	private final JCheckBox dateFilterCheckBox = new JCheckBox("Date Filter");
 
 	private final JProgressBar progressBar = new JProgressBar();
 
 	private final JToggleButton importButton = new JToggleButton("Import");
+
+	private JDatePickerImpl fromDate = null;
+	private JDatePickerImpl toDate = null;
 
 	/**
 	 * Launch the application.
@@ -156,7 +168,8 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 				try {
 					gfatmImport = new GfatmImportMain();
 					gfatmImport.readProperties(propertiesFile);
-					gfatmImport.mainFrame.setTitle(title + version.toString());
+					gfatmImport.mainFrame.setTitle(title + " "
+							+ version.toString());
 					gfatmImport.mainFrame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -298,6 +311,8 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 						FormSpecs.RELATED_GAP_ROWSPEC,
 						FormSpecs.DEFAULT_ROWSPEC,
 						FormSpecs.RELATED_GAP_ROWSPEC,
+						FormSpecs.DEFAULT_ROWSPEC,
+						FormSpecs.RELATED_GAP_ROWSPEC,
 						RowSpec.decode("default:grow"), }));
 		centerPanel.add(lblDataToImport, "2, 2, 5, 1");
 		centerPanel.add(optionsPanel, "2, 4, 5, 1, left, fill");
@@ -310,13 +325,29 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 		optionsPanel.add(conceptsCheckBox);
 		optionsPanel.add(locationsCheckBox);
 		optionsPanel.add(otherMetadataCheckBox);
-		centerPanel.add(lblImportOption, "2, 6, 5, 1");
+
+		UtilDateModel fromModel = new UtilDateModel();
+		UtilDateModel toModel = new UtilDateModel();
+		Properties p = new Properties();
+		p.put("text.today", "Today");
+		p.put("text.month", "Month");
+		p.put("text.year", "Year");
+		final JDatePanelImpl fromDatePanel = new JDatePanelImpl(fromModel, p);
+		final JDatePanelImpl toDatePanel = new JDatePanelImpl(toModel, p);
+		fromDate = new JDatePickerImpl(fromDatePanel, new DateLabelFormatter());
+		toDate = new JDatePickerImpl(toDatePanel, new DateLabelFormatter());
+		dateFilterCheckBox.setSelected(true);
+		centerPanel.add(dateFilterCheckBox, "2, 6, center, default");
+		centerPanel.add(fromDate, "4, 6, fill, fill");
+		centerPanel.add(toDate, "6, 6, fill, fill");
+		centerPanel.add(lblImportOption, "2, 8, 5, 1");
 		ComboBoxModel<String> comboBoxModel = new DefaultComboBoxModel<String>(
-				new String[] { "Every 6 hours", "Twice a day", "Daily" });
+				new String[] { "Hourly", "Every 6 hours", "Twice a day",
+						"Daily" });
 		importOptionComboBox.setModel(comboBoxModel);
-		centerPanel.add(importOptionComboBox, "2, 8, fill, default");
-		centerPanel.add(importButton, "4, 8, fill, default");
-		centerPanel.add(progressPanel, "6, 8, fill, center");
+		centerPanel.add(importOptionComboBox, "2, 10, fill, default");
+		centerPanel.add(importButton, "4, 10, fill, default");
+		centerPanel.add(progressPanel, "6, 10, fill, center");
 		progressPanel.setLayout(new FormLayout(new ColumnSpec[] {
 				FormSpecs.RELATED_GAP_COLSPEC, FormSpecs.DEFAULT_COLSPEC,
 				ColumnSpec.decode("center:120px"), },
@@ -324,18 +355,23 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 		progressPanel.add(lblProgress, "2, 1");
 		progressPanel.add(progressBar, "3, 1, fill, fill");
 		progressBar.setStringPainted(true);
-		centerPanel.add(scrollPane, "2, 10, 5, 1, fill, fill");
+		centerPanel.add(scrollPane, "2, 12, 5, 1, fill, fill");
 		scrollPane.setViewportView(logTextPane);
+		dateFilterCheckBox.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				boolean checked = dateFilterCheckBox.isSelected();
+				fromDate.getJFormattedTextField().setEnabled(checked);
+				toDate.getJFormattedTextField().setEnabled(checked);
+			}
+		});
+		dateFilterCheckBox.addChangeListener(new ChangeListener() {
+			public void stateChanged(ChangeEvent e) {
+				boolean checked = dateFilterCheckBox.isSelected();
+				fromDatePanel.setEnabled(checked);
+				toDatePanel.setEnabled(checked);
+			}
+		});
 		importButton.addActionListener(this);
-		serverUrlTextField.addKeyListener(this);
-		serverDriverTextField.addKeyListener(this);
-		serverDatabaseTextField.addKeyListener(this);
-		serverUsernameTextField.addKeyListener(this);
-		localUrlTextField.addKeyListener(this);
-		localDriverTextField.addKeyListener(this);
-		localDatabaseTextField.addKeyListener(this);
-		localUsernameTextField.addKeyListener(this);
-		;
 	}
 
 	/**
@@ -348,6 +384,16 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 		serverDriverTextField.setColumns(15);
 		InputStream propFile;
 		try {
+			if (!(new File(userHome).exists())) {
+				boolean checkDir = new File(userHome).mkdir();
+				if (!checkDir) {
+					JOptionPane
+							.showMessageDialog(
+									null,
+									"Could not create properties file. Please check the permissions of your home folder.",
+									"Error!", JOptionPane.ERROR_MESSAGE);
+				}
+			}
 			propFile = new FileInputStream(propertiesFile);
 			if (propFile != null) {
 				props = new Properties();
@@ -409,8 +455,11 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 	public void setMode(ImportStatus importStatus) {
 		Component[] clientComponents = clientPanel.getComponents();
 		Component[] serverComponents = serverPanel.getComponents();
-		Component[] otherComponents = { importOptionComboBox, usersCheckBox,
-				locationsCheckBox, conceptsCheckBox, otherMetadataCheckBox };
+		Component[] otherComponents = { dateFilterCheckBox,
+				importOptionComboBox, usersCheckBox, locationsCheckBox,
+				conceptsCheckBox, otherMetadataCheckBox,
+				fromDate.getJFormattedTextField(),
+				toDate.getJFormattedTextField() };
 		Component[] all = ArrayUtils.addAll(clientComponents, serverComponents);
 		all = ArrayUtils.addAll(all, otherComponents);
 		switch (importStatus) {
@@ -420,6 +469,7 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 				field.setEnabled(true);
 			}
 			break;
+		case COMPLETED:
 		case IMPORTING:
 		case WAITING:
 			log(importStatus.toString(), Level.INFO);
@@ -477,6 +527,13 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 		if ((usersChecked | locationsChecked | conceptsChecked | otherMetadataChecked) == false) {
 			error.append("At least one option must be checked to import.\n");
 		}
+		if (dateFilterCheckBox.isSelected()) {
+			String from = fromDate.getJFormattedTextField().getText();
+			String to = toDate.getJFormattedTextField().getText();
+			if (from.equals("") || to.equals("")) {
+				error.append("Dates cannot be empty when date filter is enabled.\n");
+			}
+		}
 		// Check data types
 		if (!RegexUtil.isWord(serverUsername)) {
 			error.append("Server Username is invalid.\n");
@@ -521,9 +578,12 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 		int interval = -1;
 		switch (importOptionComboBox.getSelectedIndex()) {
 		case 0:
-			interval = 6;
+			interval = 1;
 			break;
 		case 1:
+			interval = 6;
+			break;
+		case 2:
 			interval = 12;
 			break;
 		default:
@@ -540,6 +600,15 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 		importJobObj.setImportLocations(locationsCheckBox.isSelected());
 		importJobObj.setImportConcepts(conceptsCheckBox.isSelected());
 		importJobObj.setImportOtherMetadata(otherMetadataCheckBox.isSelected());
+		if (dateFilterCheckBox.isSelected()) {
+			importJobObj.setFilterDate(dateFilterCheckBox.isSelected());
+			Calendar from = Calendar.getInstance();
+			Calendar to = Calendar.getInstance();
+			from.set(fromDate.getModel().getYear(), fromDate.getModel().getMonth(), fromDate.getModel().getDay());
+			to.set(toDate.getModel().getYear(), toDate.getModel().getMonth(), toDate.getModel().getDay());
+			importJobObj.setDateFrom(from.getTime());
+			importJobObj.setDateTo(to.getTime());
+		}
 		job.getJobDataMap().put("importJob", importJobObj);
 		SimpleScheduleBuilder scheduleBuilder = SimpleScheduleBuilder
 				.simpleSchedule().withIntervalInHours(interval);
@@ -552,6 +621,18 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 	public void actionPerformed(ActionEvent event) {
 		JComponent source = (JComponent) event.getSource();
 		if (source == importButton) {
+			// Trim spaces from text fields
+			JComponent[] keyFields = { serverUrlTextField,
+					serverDriverTextField, serverDatabaseTextField,
+					serverUsernameTextField, localUrlTextField,
+					localDriverTextField, localDatabaseTextField,
+					localUsernameTextField };
+			for (JComponent field : keyFields) {
+				if (source == field) {
+					JTextComponent textField = (JTextComponent) source;
+					textField.setText(textField.getText().trim());
+				}
+			}
 			JToggleButton button = (JToggleButton) source;
 			if (button.isSelected()) {
 				setMode(ImportStatus.IMPORTING);
@@ -577,30 +658,6 @@ public class GfatmImportMain implements ActionListener, KeyListener {
 					e.printStackTrace();
 				}
 			}
-
 		}
-
-	}
-
-	public void keyTyped(KeyEvent event) {
-		JComponent source = (JComponent) event.getSource();
-		JComponent[] keyFields = { serverUrlTextField, serverDriverTextField,
-				serverDatabaseTextField, serverUsernameTextField,
-				localUrlTextField, localDriverTextField,
-				localDatabaseTextField, localUsernameTextField };
-		for (JComponent field : keyFields) {
-			if (source == field) {
-				JTextComponent textField = (JTextComponent) source;
-				textField.setText(textField.getText().trim());
-			}
-		}
-	}
-
-	public void keyPressed(KeyEvent event) {
-		// TODO Auto-generated method stub
-	}
-
-	public void keyReleased(KeyEvent event) {
-		// TODO Auto-generated method stub
 	}
 }

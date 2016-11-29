@@ -14,5 +14,5 @@ package com.ihsinformatics.gfatmimport;
  *
  */
 public enum ImportStatus {
-	IMPORTING, WAITING, STOPPED
+	IMPORTING, WAITING, STOPPED, COMPLETED
 }

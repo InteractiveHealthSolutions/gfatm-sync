@@ -149,7 +149,7 @@ public class ImportJob implements Job {
 	 */
 	public String filter(String createDateName, String updateDateName) {
 		StringBuilder filter = new StringBuilder();
-		if (isFilterDate()) {
+		if (isFilterDate() & getDateFrom() != null & getDateTo() != null) {
 			filter.append(" WHERE " + createDateName);
 			filter.append(" BETWEEN '" + DateTimeUtil.getSqlDate(getDateFrom())
 					+ "'");
@@ -663,7 +663,9 @@ public class ImportJob implements Job {
 			throws SQLException {
 		GfatmImportMain.gfatmImport.log("Executing: " + insertQuery + " "
 				+ selectQuery, Level.INFO);
-		Connection remoteConnection = getRemoteDb().getConnection();
+		Connection remoteConnection = DriverManager.getConnection(getRemoteDb()
+				.getUrl(), getRemoteDb().getUsername(), getRemoteDb()
+				.getPassword());
 		ResultSet data = remoteConnection.createStatement().executeQuery(
 				selectQuery);
 		ResultSetMetaData metaData = data.getMetaData();

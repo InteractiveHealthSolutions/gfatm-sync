@@ -335,8 +335,9 @@ public class GfatmImportMain implements ActionListener {
 		final JDatePanelImpl fromDatePanel = new JDatePanelImpl(fromModel, p);
 		final JDatePanelImpl toDatePanel = new JDatePanelImpl(toModel, p);
 		fromDate = new JDatePickerImpl(fromDatePanel, new DateLabelFormatter());
+		fromDate.getJFormattedTextField().setEnabled(false);
 		toDate = new JDatePickerImpl(toDatePanel, new DateLabelFormatter());
-		dateFilterCheckBox.setSelected(true);
+		toDate.getJFormattedTextField().setEnabled(false);
 		centerPanel.add(dateFilterCheckBox, "2, 6, center, default");
 		centerPanel.add(fromDate, "4, 6, fill, fill");
 		centerPanel.add(toDate, "6, 6, fill, fill");
@@ -457,9 +458,7 @@ public class GfatmImportMain implements ActionListener {
 		Component[] serverComponents = serverPanel.getComponents();
 		Component[] otherComponents = { dateFilterCheckBox,
 				importOptionComboBox, usersCheckBox, locationsCheckBox,
-				conceptsCheckBox, otherMetadataCheckBox,
-				fromDate.getJFormattedTextField(),
-				toDate.getJFormattedTextField() };
+				conceptsCheckBox, otherMetadataCheckBox, fromDate, toDate };
 		Component[] all = ArrayUtils.addAll(clientComponents, serverComponents);
 		all = ArrayUtils.addAll(all, otherComponents);
 		switch (importStatus) {
@@ -604,8 +603,10 @@ public class GfatmImportMain implements ActionListener {
 			importJobObj.setFilterDate(dateFilterCheckBox.isSelected());
 			Calendar from = Calendar.getInstance();
 			Calendar to = Calendar.getInstance();
-			from.set(fromDate.getModel().getYear(), fromDate.getModel().getMonth(), fromDate.getModel().getDay());
-			to.set(toDate.getModel().getYear(), toDate.getModel().getMonth(), toDate.getModel().getDay());
+			from.set(fromDate.getModel().getYear(), fromDate.getModel()
+					.getMonth(), fromDate.getModel().getDay());
+			to.set(toDate.getModel().getYear(), toDate.getModel().getMonth(),
+					toDate.getModel().getDay());
 			importJobObj.setDateFrom(from.getTime());
 			importJobObj.setDateTo(to.getTime());
 		}

@@ -39,8 +39,7 @@ public class ImportJob implements Job {
 	final String[] LOCATION_TABLES = { "location_attribute_type", "location",
 			"location_attribute" };
 	final String[] CONCEPT_TABLES = { "concept_class", "concept_datatype",
-			"concept_map_type", "concept_reference_map",
-			"concept_reference_term", "concept_reference_source",
+			"concept_map_type", "concept_reference_source",
 			"concept_stop_word", "concept", "concept_answer",
 			"concept_description", "concept_name", "concept_numeric",
 			"concept_set" };
@@ -64,7 +63,6 @@ public class ImportJob implements Job {
 	private Date dateFrom;
 	private Date dateTo;
 	private int progressRange = 0;
-	private int currentProgress = 0;
 
 	public ImportJob() {
 	}
@@ -88,7 +86,6 @@ public class ImportJob implements Job {
 				+ (isImportOtherMetadata() ? OTHER_METADATA_TABLES.length : 0)
 				* 3;
 		GfatmImportMain.gfatmImport.resetProgressBar(0, progressRange);
-		currentProgress = 0;
 	}
 
 	public void execute(JobExecutionContext context)
@@ -135,8 +132,7 @@ public class ImportJob implements Job {
 						+ e.getMessage(), Level.WARNING);
 			}
 		}
-		GfatmImportMain.gfatmImport.updateProgress(progressRange
-				- currentProgress);
+		GfatmImportMain.gfatmImport.updateProgress(progressRange);
 		GfatmImportMain.gfatmImport.setMode(ImportStatus.WAITING);
 	}
 
@@ -190,8 +186,8 @@ public class ImportJob implements Job {
 		remoteSelectInsert(selectQuery, insertQuery);
 		// provider
 		createTempTable(getLocalDb(), "provider");
-		insertQuery = "INSERT INTO temp_provider(provider_id,person_id,name,identifier,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,provider_role_id)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT provider_id,person_id,name,identifier,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,provider_role_id FROM provider "
+		insertQuery = "INSERT INTO temp_provider(provider_id,person_id,name,identifier,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT provider_id,person_id,name,identifier,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM provider "
 				+ filter("date_created", "date_changed")
 				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
@@ -305,12 +301,6 @@ public class ImportJob implements Job {
 		selectQuery = "SELECT concept_map_type_id,name,description,creator,date_created,changed_by,date_changed,is_hidden,retired,retired_by,date_retired,retire_reason,uuid FROM openmrs.concept_map_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
-		// concept_reference_map
-		createTempTable(getLocalDb(), "concept_reference_map");
-		insertQuery = "INSERT INTO temp_concept_reference_map(concept_map_id,creator,date_created,concept_id,uuid,concept_reference_term_id,concept_map_type_id,changed_by,date_changed)VALUES(?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_map_id,creator,date_created,concept_id,uuid,concept_reference_term_id,concept_map_type_id,changed_by,date_changed FROM openmrs.concept_reference_map "
-				+ filter("date_created", null) + " ORDER BY date_created";
-		remoteSelectInsert(selectQuery, insertQuery);
 		// concept_reference_source
 		createTempTable(getLocalDb(), "concept_reference_source");
 		insertQuery = "INSERT INTO temp_concept_reference_source(concept_source_id,name,description,hl7_code,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?)";
@@ -319,10 +309,16 @@ public class ImportJob implements Job {
 		remoteSelectInsert(selectQuery, insertQuery);
 		// concept_reference_map
 		createTempTable(getLocalDb(), "concept_reference_map");
+		insertQuery = "INSERT INTO temp_concept_reference_map(concept_map_id,creator,date_created,concept_id,uuid,concept_reference_term_id,concept_map_type_id,changed_by,date_changed)VALUES(?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT concept_map_id,creator,date_created,concept_id,uuid,concept_reference_term_id,concept_map_type_id,changed_by,date_changed FROM openmrs.concept_reference_map "
+				+ filter("date_created", null) + " ORDER BY date_created";
+		// remoteSelectInsert(selectQuery, insertQuery);
+		// concept_reference_map
+		createTempTable(getLocalDb(), "concept_reference_term");
 		insertQuery = "INSERT INTO temp_concept_reference_term(concept_reference_term_id,concept_source_id,name,code,version,description,creator,date_created,date_changed,changed_by,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT concept_reference_term_id,concept_source_id,name,code,version,description,creator,date_created,date_changed,changed_by,retired,retired_by,date_retired,retire_reason,uuid FROM openmrs.concept_reference_term "
 				+ filter("date_created", null) + " ORDER BY date_created";
-		remoteSelectInsert(selectQuery, insertQuery);
+		// remoteSelectInsert(selectQuery, insertQuery);
 		// concept_stop_word
 		createTempTable(getLocalDb(), "concept_stop_word");
 		insertQuery = "INSERT INTO temp_concept_stop_word(concept_stop_word_id,word,locale,uuid)VALUES(?,?,?,?)";
@@ -576,7 +572,8 @@ public class ImportJob implements Job {
 				"UPDATE concept_class AS a INNER JOIN temp_concept_class as b ON a.uuid = b.uuid SET a.name = b.name, a.description = b.description, a.creator = b.creator, a.date_created = b.date_created, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
 				"UPDATE concept_datatype AS a INNER JOIN temp_concept_datatype as b ON a.uuid = b.uuid SET a.name = b.name, a.hl7_abbreviation = b.hl7_abbreviation, a.description = b.description, a.creator = b.creator, a.date_created = b.date_created, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
 				"UPDATE concept_map_type AS a INNER JOIN temp_concept_map_type as b ON a.uuid = b.uuid SET a.name = b.name, a.description = b.description, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.is_hidden = b.is_hidden, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
-				"UPDATE concept_reference_map AS a INNER JOIN temp_concept_reference_map as b ON a.uuid = b.uuid SET a.creator = b.creator, a.date_created = b.date_created, a.concept_id = b.concept_id, a.concept_reference_term_id = b.concept_reference_term_id, a.concept_map_type_id = b.concept_map_type_id, a.changed_by = b.changed_by, a.date_changed = b.date_changed",
+				// "UPDATE concept_reference_map AS a INNER JOIN temp_concept_reference_map as b ON a.uuid = b.uuid SET a.creator = b.creator, a.date_created = b.date_created, a.concept_id = b.concept_id, a.concept_reference_term_id = b.concept_reference_term_id, a.concept_map_type_id = b.concept_map_type_id, a.changed_by = b.changed_by, a.date_changed = b.date_changed",
+				// "UPDATE concept_reference_term AS a INNER JOIN concept_reference_term as b ON a.uuid = b.uuid SET a.creator = b.creator, a.date_created = b.date_created, a.concept_id = b.concept_id, a.concept_reference_term_id = b.concept_reference_term_id, a.concept_map_type_id = b.concept_map_type_id, a.changed_by = b.changed_by, a.date_changed = b.date_changed",
 				"UPDATE concept_reference_source AS a INNER JOIN temp_concept_reference_source as b ON a.uuid = b.uuid SET a.name = b.name, a.description = b.description, a.hl7_code = b.hl7_code, a.creator = b.creator, a.date_created = b.date_created, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
 				"UPDATE concept_stop_word AS a INNER JOIN temp_concept_stop_word as b ON a.uuid = b.uuid SET a.word = b.word, a.locale = b.locale",
 				"UPDATE concept AS a INNER JOIN temp_concept as b ON a.uuid = b.uuid SET a.retired = b.retired, a.short_name = b.short_name, a.description = b.description, a.form_text = b.form_text, a.datatype_id = b.datatype_id, a.class_id = b.class_id, a.is_set = b.is_set, a.creator = b.creator, a.date_created = b.date_created, a.version = b.version, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
@@ -682,7 +679,6 @@ public class ImportJob implements Job {
 		}
 		// For Progress Bar
 		GfatmImportMain.gfatmImport.updateProgress(1);
-		currentProgress++;
 	}
 
 	public DatabaseUtil getLocalDb() {

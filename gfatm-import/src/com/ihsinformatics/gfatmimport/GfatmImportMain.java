@@ -46,8 +46,6 @@ import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.JToggleButton;
 import javax.swing.UIManager;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.JTextComponent;
 import javax.swing.text.SimpleAttributeSet;
@@ -55,9 +53,6 @@ import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.jdatepicker.impl.JDatePanelImpl;
-import org.jdatepicker.impl.JDatePickerImpl;
-import org.jdatepicker.impl.UtilDateModel;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.quartz.Scheduler;
@@ -114,6 +109,7 @@ public class GfatmImportMain implements ActionListener {
 	private final JLabel lblLocalUsername = new JLabel("Username:");
 	private final JLabel lblLocalPassword = new JLabel("Password:");
 	private final JLabel lblDataToImport = new JLabel("Data to Import:");
+	private final JLabel lblDataFrom = new JLabel("Data From:");
 	private final JLabel lblImportOption = new JLabel("Import Option:");
 	private final JLabel lblProgress = new JLabel("Progress:");
 
@@ -129,6 +125,7 @@ public class GfatmImportMain implements ActionListener {
 	private final JPasswordField localPasswordField = new JPasswordField();
 	private final JTextPane logTextPane = new JTextPane();
 
+	private final JComboBox<String> dataFromComboBox = new JComboBox<String>();
 	private final JComboBox<String> importOptionComboBox = new JComboBox<String>();
 
 	private final JCheckBox usersCheckBox = new JCheckBox(
@@ -139,14 +136,10 @@ public class GfatmImportMain implements ActionListener {
 			"Concepts and Form Types");
 	private final JCheckBox otherMetadataCheckBox = new JCheckBox(
 			"Other Metadata");
-	private final JCheckBox dateFilterCheckBox = new JCheckBox("Date Filter");
 
 	private final JProgressBar progressBar = new JProgressBar();
 
 	private final JToggleButton importButton = new JToggleButton("Import");
-
-	private JDatePickerImpl fromDate = null;
-	private JDatePickerImpl toDate = null;
 
 	/**
 	 * Launch the application.
@@ -326,21 +319,17 @@ public class GfatmImportMain implements ActionListener {
 		optionsPanel.add(locationsCheckBox);
 		optionsPanel.add(otherMetadataCheckBox);
 
-		UtilDateModel fromModel = new UtilDateModel();
-		UtilDateModel toModel = new UtilDateModel();
 		Properties p = new Properties();
 		p.put("text.today", "Today");
 		p.put("text.month", "Month");
 		p.put("text.year", "Year");
-		final JDatePanelImpl fromDatePanel = new JDatePanelImpl(fromModel, p);
-		final JDatePanelImpl toDatePanel = new JDatePanelImpl(toModel, p);
-		fromDate = new JDatePickerImpl(fromDatePanel, new DateLabelFormatter());
-		fromDate.getJFormattedTextField().setEnabled(false);
-		toDate = new JDatePickerImpl(toDatePanel, new DateLabelFormatter());
-		toDate.getJFormattedTextField().setEnabled(false);
-		centerPanel.add(dateFilterCheckBox, "2, 6, center, default");
-		centerPanel.add(fromDate, "4, 6, fill, fill");
-		centerPanel.add(toDate, "6, 6, fill, fill");
+		centerPanel.add(lblDataFrom, "2, 6, left, default");
+
+		dataFromComboBox.setModel(new DefaultComboBoxModel<String>(
+				new String[] { "Today", "Yesterday", "Past 3 days",
+						"Past 7 days", "Current month", "Current year",
+						"Beginning" }));
+		centerPanel.add(dataFromComboBox, "4, 6, fill, default");
 		centerPanel.add(lblImportOption, "2, 8, 5, 1");
 		ComboBoxModel<String> comboBoxModel = new DefaultComboBoxModel<String>(
 				new String[] { "Hourly", "Every 6 hours", "Twice a day",
@@ -358,20 +347,6 @@ public class GfatmImportMain implements ActionListener {
 		progressBar.setStringPainted(true);
 		centerPanel.add(scrollPane, "2, 12, 5, 1, fill, fill");
 		scrollPane.setViewportView(logTextPane);
-		dateFilterCheckBox.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				boolean checked = dateFilterCheckBox.isSelected();
-				fromDate.getJFormattedTextField().setEnabled(checked);
-				toDate.getJFormattedTextField().setEnabled(checked);
-			}
-		});
-		dateFilterCheckBox.addChangeListener(new ChangeListener() {
-			public void stateChanged(ChangeEvent e) {
-				boolean checked = dateFilterCheckBox.isSelected();
-				fromDatePanel.setEnabled(checked);
-				toDatePanel.setEnabled(checked);
-			}
-		});
 		importButton.addActionListener(this);
 	}
 
@@ -456,9 +431,9 @@ public class GfatmImportMain implements ActionListener {
 	public void setMode(ImportStatus importStatus) {
 		Component[] clientComponents = clientPanel.getComponents();
 		Component[] serverComponents = serverPanel.getComponents();
-		Component[] otherComponents = { dateFilterCheckBox,
-				importOptionComboBox, usersCheckBox, locationsCheckBox,
-				conceptsCheckBox, otherMetadataCheckBox, fromDate, toDate };
+		Component[] otherComponents = { dataFromComboBox, importOptionComboBox,
+				usersCheckBox, locationsCheckBox, conceptsCheckBox,
+				otherMetadataCheckBox };
 		Component[] all = ArrayUtils.addAll(clientComponents, serverComponents);
 		all = ArrayUtils.addAll(all, otherComponents);
 		switch (importStatus) {
@@ -526,13 +501,6 @@ public class GfatmImportMain implements ActionListener {
 		if ((usersChecked | locationsChecked | conceptsChecked | otherMetadataChecked) == false) {
 			error.append("At least one option must be checked to import.\n");
 		}
-		if (dateFilterCheckBox.isSelected()) {
-			String from = fromDate.getJFormattedTextField().getText();
-			String to = toDate.getJFormattedTextField().getText();
-			if (from.equals("") || to.equals("")) {
-				error.append("Dates cannot be empty when date filter is enabled.\n");
-			}
-		}
 		// Check data types
 		if (!RegexUtil.isWord(serverUsername)) {
 			error.append("Server Username is invalid.\n");
@@ -599,17 +567,36 @@ public class GfatmImportMain implements ActionListener {
 		importJobObj.setImportLocations(locationsCheckBox.isSelected());
 		importJobObj.setImportConcepts(conceptsCheckBox.isSelected());
 		importJobObj.setImportOtherMetadata(otherMetadataCheckBox.isSelected());
-		if (dateFilterCheckBox.isSelected()) {
-			importJobObj.setFilterDate(dateFilterCheckBox.isSelected());
-			Calendar from = Calendar.getInstance();
-			Calendar to = Calendar.getInstance();
-			from.set(fromDate.getModel().getYear(), fromDate.getModel()
-					.getMonth(), fromDate.getModel().getDay());
-			to.set(toDate.getModel().getYear(), toDate.getModel().getMonth(),
-					toDate.getModel().getDay());
-			importJobObj.setDateFrom(from.getTime());
-			importJobObj.setDateTo(to.getTime());
+		importJobObj.setFilterDate(true);
+		Calendar from = Calendar.getInstance();
+		Calendar to = Calendar.getInstance();
+		switch (dataFromComboBox.getSelectedIndex()) {
+		case 0: // Today
+			break;
+		case 1: // Yesterday
+			from.set(Calendar.DATE, from.get(Calendar.DATE) - 1);
+			break;
+		case 2: // Past 3 days
+			from.set(Calendar.DATE, from.get(Calendar.DATE) - 3);
+			break;
+		case 3: // Past 7 days
+			from.set(Calendar.DATE, from.get(Calendar.DATE) - 7);
+			break;
+		case 4: // Current month
+			from.set(Calendar.DATE, 0);
+			break;
+		case 5: // Current year
+			from.set(Calendar.DATE, 1);
+			from.set(Calendar.MONTH, 0);
+			break;
+		case 6: // Beginning
+			from.set(Calendar.DATE, 1);
+			from.set(Calendar.MONTH, 0);
+			from.set(Calendar.YEAR, from.get(Calendar.YEAR) - 99);
+			break;
 		}
+		importJobObj.setDateFrom(from.getTime());
+		importJobObj.setDateTo(to.getTime());
 		job.getJobDataMap().put("importJob", importJobObj);
 		SimpleScheduleBuilder scheduleBuilder = SimpleScheduleBuilder
 				.simpleSchedule().withIntervalInHours(interval);

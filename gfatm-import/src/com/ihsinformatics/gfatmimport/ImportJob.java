@@ -147,15 +147,16 @@ public class ImportJob implements Job {
 		StringBuilder filter = new StringBuilder();
 		if (isFilterDate() & getDateFrom() != null & getDateTo() != null) {
 			filter.append(" WHERE " + createDateName);
-			filter.append(" BETWEEN '" + DateTimeUtil.getSqlDate(getDateFrom())
-					+ "'");
-			filter.append(" AND '" + DateTimeUtil.getSqlDate(getDateTo()) + "'");
+			filter.append(" BETWEEN DATE('"
+					+ DateTimeUtil.getSqlDate(getDateFrom()) + "')");
+			filter.append(" AND DATE('" + DateTimeUtil.getSqlDate(getDateTo())
+					+ "')");
 			if (updateDateName != null) {
 				filter.append(" OR " + updateDateName);
-				filter.append(" BETWEEN '"
-						+ DateTimeUtil.getSqlDate(getDateFrom()) + "'");
-				filter.append(" AND '" + DateTimeUtil.getSqlDate(getDateTo())
-						+ "'");
+				filter.append(" BETWEEN DATE('"
+						+ DateTimeUtil.getSqlDate(getDateFrom()) + "')");
+				filter.append(" AND DATE('"
+						+ DateTimeUtil.getSqlDate(getDateTo()) + "')");
 			}
 		}
 		return filter.toString();
@@ -172,18 +173,25 @@ public class ImportJob implements Job {
 				Level.INFO);
 		String selectQuery = "";
 		String insertQuery = "";
+
 		// privilege
 		createTempTable(getLocalDb(), "privilege");
 		insertQuery = "INSERT INTO temp_privilege(privilege,description,uuid)VALUES(?,?,?)";
 		selectQuery = "SELECT privilege,description,uuid FROM privilege";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO privilege(privilege,description,uuid) SELECT privilege,description,uuid FROM temp_privilege";
+		localInsert(insertQuery);
+
 		// provider_attribute_type
 		createTempTable(getLocalDb(), "provider_attribute_type");
-		insertQuery = "INSERT INTO temp_provider_attribute(provider_attribute_id,provider_id,attribute_type_id,value_reference,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT provider_attribute_id,provider_id,attribute_type_id,value_reference,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid FROM provider_attribute "
+		insertQuery = "INSERT INTO temp_provider_attribute_type(provider_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT provider_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM provider_attribute_type "
 				+ filter("date_created", "date_changed")
 				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO provider_attribute_type(provider_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT provider_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_provider_attribute_type";
+		localInsert(insertQuery);
+
 		// provider
 		createTempTable(getLocalDb(), "provider");
 		insertQuery = "INSERT INTO temp_provider(provider_id,person_id,name,identifier,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -191,28 +199,43 @@ public class ImportJob implements Job {
 				+ filter("date_created", "date_changed")
 				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO provider(provider_id,person_id,name,identifier,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT provider_id,person_id,name,identifier,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_provider";
+		localInsert(insertQuery);
+
 		// provider_attribute
 		createTempTable(getLocalDb(), "provider_attribute");
-		insertQuery = "INSERT INTO temp_provider_attribute_type(provider_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT provider_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM provider_attribute_type "
+		insertQuery = "INSERT INTO temp_provider_attribute(provider_attribute_id,provider_id,attribute_type_id,value_reference,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT provider_attribute_id,provider_id,attribute_type_id,value_reference,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid FROM provider_attribute "
 				+ filter("date_created", "date_changed")
 				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO provider_attribute(provider_attribute_id,provider_id,attribute_type_id,value_reference,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid) SELECT provider_attribute_id,provider_id,attribute_type_id,value_reference,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid FROM temp_provider_attribute";
+		localInsert(insertQuery);
+
 		// role
 		createTempTable(getLocalDb(), "role");
 		insertQuery = "INSERT INTO temp_role(role,description,uuid)VALUES(?,?,?)";
 		selectQuery = "SELECT role,description,uuid FROM role";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO role(role,description,uuid) SELECT role,description,uuid FROM temp_role";
+		localInsert(insertQuery);
+
 		// role_privilege
 		createTempTable(getLocalDb(), "role_privilege");
 		insertQuery = "INSERT INTO temp_role_privilege(role,privilege)VALUES(?,?)";
 		selectQuery = "SELECT role,privilege FROM role_privilege";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO role_privilege(role,privilege) SELECT role,privilege FROM temp_role_privilege";
+		localInsert(insertQuery);
+
 		// role_role
 		createTempTable(getLocalDb(), "role_role");
 		insertQuery = "INSERT INTO temp_role_role(parent_role,child_role)VALUES(?,?)";
 		selectQuery = "SELECT parent_role,child_role FROM role_role";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO role_role(parent_role,child_role) SELECT parent_role,child_role FROM temp_role_role";
+		localInsert(insertQuery);
+
 		// users
 		createTempTable(getLocalDb(), "users");
 		insertQuery = "INSERT INTO temp_users(user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -220,16 +243,24 @@ public class ImportJob implements Job {
 				+ filter("date_created", "date_changed")
 				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO users(user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid) SELECT user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid FROM temp_users";
+		localInsert(insertQuery);
+
 		// user_property
 		createTempTable(getLocalDb(), "user_property");
 		insertQuery = "INSERT INTO temp_user_property(user_id,property,property_value)VALUES(?,?,?)";
 		selectQuery = "SELECT user_id,property,property_value FROM user_property";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO user_property(user_id,property,property_value) SELECT user_id,property,property_value FROM temp_user_property";
+		localInsert(insertQuery);
+
 		// user_role
 		createTempTable(getLocalDb(), "user_role");
 		insertQuery = "INSERT IGNORE INTO temp_user_role(user_id,role)VALUES(?,?)";
 		selectQuery = "SELECT user_id,role FROM user_role";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO user_role(user_id,role) SELECT user_id,role FROM temp_user_role";
+		localInsert(insertQuery);
 	}
 
 	/**
@@ -242,35 +273,50 @@ public class ImportJob implements Job {
 				"Importing locations from remote source", Level.INFO);
 		String selectQuery = "";
 		String insertQuery = "";
+
 		// location
 		createTempTable(getLocalDb(), "location");
 		insertQuery = "INSERT INTO temp_location(location_id,name,description,address1,address2,city_village,state_province,postal_code,country,latitude,longitude,creator,date_created,county_district,address3,address4,address5,address6,retired,retired_by,date_retired,retire_reason,parent_location,uuid,changed_by,date_changed)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT location_id,name,description,address1,address2,city_village,state_province,postal_code,country,latitude,longitude,creator,date_created,county_district,address3,address4,address5,address6,retired,retired_by,date_retired,retire_reason,parent_location,uuid,changed_by,date_changed FROM location "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO location(location_id,name,description,address1,address2,city_village,state_province,postal_code,country,latitude,longitude,creator,date_created,county_district,address3,address4,address5,address6,retired,retired_by,date_retired,retire_reason,parent_location,uuid,changed_by,date_changed) SELECT location_id,name,description,address1,address2,city_village,state_province,postal_code,country,latitude,longitude,creator,date_created,county_district,address3,address4,address5,address6,retired,retired_by,date_retired,retire_reason,parent_location,uuid,changed_by,date_changed FROM temp_location";
+		localInsert(insertQuery);
+
 		// location_attribute_type
 		createTempTable(getLocalDb(), "location_attribute_type");
 		insertQuery = "INSERT INTO temp_location_attribute_type(location_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT location_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM location_attribute_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO location_attribute_type(location_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT location_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_location_attribute_type";
+		localInsert(insertQuery);
+
 		// location_attribute
 		createTempTable(getLocalDb(), "location_attribute");
 		insertQuery = "INSERT INTO temp_location_attribute(location_attribute_id,location_id,attribute_type_id,value_reference,uuid,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT location_attribute_id,location_id,attribute_type_id,value_reference,uuid,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason FROM location_attribute "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO location_attribute(location_attribute_id,location_id,attribute_type_id,value_reference,uuid,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason) SELECT location_attribute_id,location_id,attribute_type_id,value_reference,uuid,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason FROM temp_location_attribute";
+		localInsert(insertQuery);
+
 		// location_tag
 		createTempTable(getLocalDb(), "location_tag");
 		insertQuery = "INSERT INTO temp_location_tag(location_tag_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,changed_by,date_changed)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT location_tag_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,changed_by,date_changed FROM location_tag "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO location_tag(location_tag_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,changed_by,date_changed) SELECT location_tag_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,changed_by,date_changed FROM temp_location_tag";
+		localInsert(insertQuery);
+
 		// location_tag_map
 		createTempTable(getLocalDb(), "location_tag_map");
 		insertQuery = "INSERT INTO temp_location_tag_map(location_id,location_tag_id)VALUES(?,?)";
 		selectQuery = "SELECT location_id,location_tag_id FROM location_tag_map";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO location_tag_map(location_id,location_tag_id) SELECT location_id,location_tag_id FROM temp_location_tag_map";
+		localInsert(insertQuery);
 	}
 
 	/**
@@ -283,82 +329,123 @@ public class ImportJob implements Job {
 				"Importing metadata from remote source", Level.INFO);
 		String selectQuery = "";
 		String insertQuery = "";
+
 		// concept_class
 		createTempTable(getLocalDb(), "concept_class");
 		insertQuery = "INSERT INTO temp_concept_class(concept_class_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_class_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM openmrs.concept_class "
+		selectQuery = "SELECT concept_class_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM concept_class "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_class(concept_class_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid) SELECT concept_class_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM temp_concept_class";
+		localInsert(insertQuery);
+
 		// concept_datatype
 		createTempTable(getLocalDb(), "concept_datatype");
 		insertQuery = "INSERT INTO temp_concept_datatype(concept_datatype_id,name,hl7_abbreviation,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_datatype_id,name,hl7_abbreviation,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM openmrs.concept_datatype "
+		selectQuery = "SELECT concept_datatype_id,name,hl7_abbreviation,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM concept_datatype "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_datatype(concept_datatype_id,name,hl7_abbreviation,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid) SELECT concept_datatype_id,name,hl7_abbreviation,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM temp_concept_datatype";
+		localInsert(insertQuery);
+
 		// concept_map_type
 		createTempTable(getLocalDb(), "concept_map_type");
 		insertQuery = "INSERT INTO temp_concept_map_type(concept_map_type_id,name,description,creator,date_created,changed_by,date_changed,is_hidden,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_map_type_id,name,description,creator,date_created,changed_by,date_changed,is_hidden,retired,retired_by,date_retired,retire_reason,uuid FROM openmrs.concept_map_type "
+		selectQuery = "SELECT concept_map_type_id,name,description,creator,date_created,changed_by,date_changed,is_hidden,retired,retired_by,date_retired,retire_reason,uuid FROM concept_map_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_map_type(concept_map_type_id,name,description,creator,date_created,changed_by,date_changed,is_hidden,retired,retired_by,date_retired,retire_reason,uuid) SELECT concept_map_type_id,name,description,creator,date_created,changed_by,date_changed,is_hidden,retired,retired_by,date_retired,retire_reason,uuid FROM temp_concept_map_type";
+		localInsert(insertQuery);
+
 		// concept_reference_source
 		createTempTable(getLocalDb(), "concept_reference_source");
 		insertQuery = "INSERT INTO temp_concept_reference_source(concept_source_id,name,description,hl7_code,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_source_id,name,description,hl7_code,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM openmrs.concept_reference_source "
+		selectQuery = "SELECT concept_source_id,name,description,hl7_code,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM concept_reference_source "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_reference_source(concept_source_id,name,description,hl7_code,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid) SELECT concept_source_id,name,description,hl7_code,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM temp_concept_reference_source";
+		localInsert(insertQuery);
+
 		// concept_reference_map
 		createTempTable(getLocalDb(), "concept_reference_map");
 		insertQuery = "INSERT INTO temp_concept_reference_map(concept_map_id,creator,date_created,concept_id,uuid,concept_reference_term_id,concept_map_type_id,changed_by,date_changed)VALUES(?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_map_id,creator,date_created,concept_id,uuid,concept_reference_term_id,concept_map_type_id,changed_by,date_changed FROM openmrs.concept_reference_map "
+		selectQuery = "SELECT concept_map_id,creator,date_created,concept_id,uuid,concept_reference_term_id,concept_map_type_id,changed_by,date_changed FROM concept_reference_map "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		// remoteSelectInsert(selectQuery, insertQuery);
+		// insertQuery =
+		// "INSERT IGNORE INTO concept_reference_map(concept_map_id,creator,date_created,concept_id,uuid,concept_reference_term_id,concept_map_type_id,changed_by,date_changed) SELECT concept_map_id,creator,date_created,concept_id,uuid,concept_reference_term_id,concept_map_type_id,changed_by,date_changed FROM temp_concept_reference_map";
+		// localInsert(insertQuery);
+
 		// concept_reference_map
 		createTempTable(getLocalDb(), "concept_reference_term");
 		insertQuery = "INSERT INTO temp_concept_reference_term(concept_reference_term_id,concept_source_id,name,code,version,description,creator,date_created,date_changed,changed_by,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_reference_term_id,concept_source_id,name,code,version,description,creator,date_created,date_changed,changed_by,retired,retired_by,date_retired,retire_reason,uuid FROM openmrs.concept_reference_term "
+		selectQuery = "SELECT concept_reference_term_id,concept_source_id,name,code,version,description,creator,date_created,date_changed,changed_by,retired,retired_by,date_retired,retire_reason,uuid FROM concept_reference_term "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		// remoteSelectInsert(selectQuery, insertQuery);
+		// insertQuery =
+		// "INSERT IGNORE INTO concept_reference_term(concept_reference_term_id,concept_source_id,name,code,version,description,creator,date_created,date_changed,changed_by,retired,retired_by,date_retired,retire_reason,uuid) SELECT concept_reference_term_id,concept_source_id,name,code,version,description,creator,date_created,date_changed,changed_by,retired,retired_by,date_retired,retire_reason,uuid FROM temp_concept_reference_term";
+		// localInsert(insertQuery);
+
 		// concept_stop_word
 		createTempTable(getLocalDb(), "concept_stop_word");
 		insertQuery = "INSERT INTO temp_concept_stop_word(concept_stop_word_id,word,locale,uuid)VALUES(?,?,?,?)";
-		selectQuery = "SELECT concept_stop_word_id,word,locale,uuid FROM openmrs.concept_stop_word";
+		selectQuery = "SELECT concept_stop_word_id,word,locale,uuid FROM concept_stop_word";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_stop_word(concept_stop_word_id,word,locale,uuid) SELECT concept_stop_word_id,word,locale,uuid FROM temp_concept_stop_word";
+		localInsert(insertQuery);
+
 		// concept
 		createTempTable(getLocalDb(), "concept");
 		insertQuery = "INSERT INTO temp_concept(concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid FROM concept "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept(concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid) SELECT concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid FROM temp_concept";
+		localInsert(insertQuery);
+
 		// concept_answer
 		createTempTable(getLocalDb(), "concept_answer");
 		insertQuery = "INSERT INTO temp_concept_answer(concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight)VALUES(?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight FROM openmrs.concept_answer "
+		selectQuery = "SELECT concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight FROM concept_answer "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_answer(concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight) SELECT concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight FROM temp_concept_answer";
+		localInsert(insertQuery);
+
 		// concept_description
 		createTempTable(getLocalDb(), "concept_description");
 		insertQuery = "INSERT INTO temp_concept_description(concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid)VALUES(?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid FROM openmrs.concept_description "
+		selectQuery = "SELECT concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid FROM concept_description "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_description(concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid) SELECT concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid FROM temp_concept_description";
+		localInsert(insertQuery);
+
 		// concept_name
 		createTempTable(getLocalDb(), "concept_name");
 		insertQuery = "INSERT INTO temp_concept_name(concept_id,name,locale,creator,date_created,concept_name_id,voided,voided_by,date_voided,void_reason,uuid,concept_name_type,locale_preferred)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_id,name,locale,creator,date_created,concept_name_id,voided,voided_by,date_voided,void_reason,uuid,concept_name_type,locale_preferred FROM openmrs.concept_name "
+		selectQuery = "SELECT concept_id,name,locale,creator,date_created,concept_name_id,voided,voided_by,date_voided,void_reason,uuid,concept_name_type,locale_preferred FROM concept_name "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_name(concept_id,name,locale,creator,date_created,concept_name_id,voided,voided_by,date_voided,void_reason,uuid,concept_name_type,locale_preferred) SELECT concept_id,name,locale,creator,date_created,concept_name_id,voided,voided_by,date_voided,void_reason,uuid,concept_name_type,locale_preferred FROM temp_concept_name";
+		localInsert(insertQuery);
+
 		// concept_numeric
 		createTempTable(getLocalDb(), "concept_numeric");
 		insertQuery = "INSERT INTO temp_concept_numeric(concept_id,hi_absolute,hi_critical,hi_normal,low_absolute,low_critical,low_normal,units,precise,display_precision)VALUES(?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_id,hi_absolute,hi_critical,hi_normal,low_absolute,low_critical,low_normal,units,precise,display_precision FROM openmrs.concept_numeric";
+		selectQuery = "SELECT concept_id,hi_absolute,hi_critical,hi_normal,low_absolute,low_critical,low_normal,units,precise,display_precision FROM concept_numeric ";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_numeric(concept_id,hi_absolute,hi_critical,hi_normal,low_absolute,low_critical,low_normal,units,precise,display_precision) SELECT concept_id,hi_absolute,hi_critical,hi_normal,low_absolute,low_critical,low_normal,units,precise,display_precision FROM temp_concept_numeric";
+		localInsert(insertQuery);
+
 		// concept_set
 		createTempTable(getLocalDb(), "concept_set");
 		insertQuery = "INSERT INTO temp_concept_set(concept_set_id,concept_id,concept_set,sort_weight,creator,date_created,uuid)VALUES(?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_set_id,concept_id,concept_set,sort_weight,creator,date_created,uuid FROM openmrs.concept_set "
+		selectQuery = "SELECT concept_set_id,concept_id,concept_set,sort_weight,creator,date_created,uuid FROM concept_set "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_set(concept_set_id,concept_id,concept_set,sort_weight,creator,date_created,uuid) SELECT concept_set_id,concept_id,concept_set,sort_weight,creator,date_created,uuid FROM temp_concept_set";
+		localInsert(insertQuery);
 	}
 
 	/**
@@ -371,130 +458,193 @@ public class ImportJob implements Job {
 				"Importing metadata from remote source", Level.INFO);
 		String selectQuery = "";
 		String insertQuery = "";
+
 		// active_list_type
 		createTempTable(getLocalDb(), "active_list_type");
 		insertQuery = "INSERT INTO temp_active_list_type(active_list_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT active_list_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM active_list_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO active_list_type(active_list_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid) SELECT active_list_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid FROM temp_active_list_type";
+		localInsert(insertQuery);
+
 		// encounter_role
 		createTempTable(getLocalDb(), "encounter_role");
 		insertQuery = "INSERT INTO temp_encounter_role(encounter_role_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT encounter_role_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM encounter_role "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO encounter_role(encounter_role_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT encounter_role_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_encounter_role";
+		localInsert(insertQuery);
+
 		// encounter_type
 		createTempTable(getLocalDb(), "encounter_type");
 		insertQuery = "INSERT INTO temp_encounter_type(encounter_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,edit_privilege,view_privilege)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT encounter_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,edit_privilege,view_privilege FROM encounter_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO encounter_type(encounter_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,edit_privilege,view_privilege) SELECT encounter_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,edit_privilege,view_privilege FROM temp_encounter_type";
+		localInsert(insertQuery);
+
 		// field_type
 		createTempTable(getLocalDb(), "field_type");
 		insertQuery = "INSERT INTO temp_field_type(field_type_id,name,description,is_set,creator,date_created,uuid)VALUES(?,?,?,?,?,?,?)";
 		selectQuery = "SELECT field_type_id,name,description,is_set,creator,date_created,uuid FROM field_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO field_type(field_type_id,name,description,is_set,creator,date_created,uuid) SELECT field_type_id,name,description,is_set,creator,date_created,uuid FROM temp_field_type";
+		localInsert(insertQuery);
+
 		// field
 		createTempTable(getLocalDb(), "field");
 		insertQuery = "INSERT INTO temp_field(field_id,name,description,field_type,concept_id,table_name,attribute_name,default_value,select_multiple,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT field_id,name,description,field_type,concept_id,table_name,attribute_name,default_value,select_multiple,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM field "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO field(field_id,name,description,field_type,concept_id,table_name,attribute_name,default_value,select_multiple,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT field_id,name,description,field_type,concept_id,table_name,attribute_name,default_value,select_multiple,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_field";
+		localInsert(insertQuery);
+
 		// field_answer
 		createTempTable(getLocalDb(), "field_answer");
 		insertQuery = "INSERT INTO temp_field_answer(field_id,answer_id,creator,date_created,uuid)VALUES(?,?,?,?,?)";
 		selectQuery = "SELECT field_id,answer_id,creator,date_created,uuid FROM field_answer "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO field_answer(field_id,answer_id,creator,date_created,uuid) SELECT field_id,answer_id,creator,date_created,uuid FROM temp_field_answer";
+		localInsert(insertQuery);
+
 		// form
 		createTempTable(getLocalDb(), "form");
 		insertQuery = "INSERT INTO temp_form(form_id,name,version,build,published,xslt,template,description,encounter_type,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retired_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT form_id,name,version,build,published,xslt,template,description,encounter_type,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retired_reason,uuid FROM form "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO form(form_id,name,version,build,published,xslt,template,description,encounter_type,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retired_reason,uuid) SELECT form_id,name,version,build,published,xslt,template,description,encounter_type,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retired_reason,uuid FROM temp_form";
+		localInsert(insertQuery);
+
 		// form_resource
 		createTempTable(getLocalDb(), "form_resource");
 		insertQuery = "INSERT INTO temp_form_resource(form_resource_id,form_id,name,value_reference,datatype,datatype_config,preferred_handler,handler_config,uuid)VALUES(?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT form_resource_id,form_id,name,value_reference,datatype,datatype_config,preferred_handler,handler_config,uuid FROM form_resource";
+		selectQuery = "SELECT form_resource_id,form_id,name,value_reference,datatype,datatype_config,preferred_handler,handler_config,uuid FROM form_resource ";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO form_resource(form_resource_id,form_id,name,value_reference,datatype,datatype_config,preferred_handler,handler_config,uuid) SELECT form_resource_id,form_id,name,value_reference,datatype,datatype_config,preferred_handler,handler_config,uuid FROM temp_form_resource";
+		localInsert(insertQuery);
+
 		// form_field
 		createTempTable(getLocalDb(), "form_field");
 		insertQuery = "INSERT INTO temp_form_field(form_field_id,orm_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid FROM form_field "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO form_field(form_field_id,orm_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid) SELECT form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid FROM temp_form_field";
+		localInsert(insertQuery);
+
 		// hl7_source
 		createTempTable(getLocalDb(), "hl7_source");
 		insertQuery = "INSERT INTO temp_hl7_source(hl7_source_id,name,description,creator,date_created,uuid)VALUES(?,?,?,?,?,?)";
 		selectQuery = "SELECT hl7_source_id,name,description,creator,date_created,uuid FROM hl7_source "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO hl7_source(hl7_source_id,name,description,creator,date_created,uuid) SELECT hl7_source_id,name,description,creator,date_created,uuid FROM temp_hl7_source";
+		localInsert(insertQuery);
+
 		// htmlformentry_html_form
 		createTempTable(getLocalDb(), "htmlformentry_html_form");
 		insertQuery = "INSERT INTO temp_htmlformentry_html_form(id,form_id,name,xml_data,creator,date_created,changed_by,date_changed,retired,uuid,description,retired_by,date_retired,retire_reason)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT id,form_id,name,xml_data,creator,date_created,changed_by,date_changed,retired,uuid,description,retired_by,date_retired,retire_reason FROM htmlformentry_html_form "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO htmlformentry_html_form(id,form_id,name,xml_data,creator,date_created,changed_by,date_changed,retired,uuid,description,retired_by,date_retired,retire_reason) SELECT id,form_id,name,xml_data,creator,date_created,changed_by,date_changed,retired,uuid,description,retired_by,date_retired,retire_reason FROM temp_htmlformentry_html_form";
+		localInsert(insertQuery);
+
 		// patient_identifier_type
 		createTempTable(getLocalDb(), "patient_identifier_type");
 		insertQuery = "INSERT INTO temp_patient_identifier_type(patient_identifier_type_id,name,description,format,check_digit,creator,date_created,required,format_description,validator,location_behavior,retired,retired_by,date_retired,retire_reason,uuid,uniqueness_behavior)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT patient_identifier_type_id,name,description,format,check_digit,creator,date_created,required,format_description,validator,location_behavior,retired,retired_by,date_retired,retire_reason,uuid,uniqueness_behavior FROM patient_identifier_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO patient_identifier_type(patient_identifier_type_id,name,description,format,check_digit,creator,date_created,required,format_description,validator,location_behavior,retired,retired_by,date_retired,retire_reason,uuid,uniqueness_behavior) SELECT patient_identifier_type_id,name,description,format,check_digit,creator,date_created,required,format_description,validator,location_behavior,retired,retired_by,date_retired,retire_reason,uuid,uniqueness_behavior FROM temp_patient_identifier_type";
+		localInsert(insertQuery);
+
 		// person_attribute_type
 		createTempTable(getLocalDb(), "person_attribute_type");
 		insertQuery = "INSERT INTO temp_person_attribute_type(person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid FROM person_attribute_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO person_attribute_type(person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid) SELECT person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid FROM temp_person_attribute_type";
+		localInsert(insertQuery);
+
 		// program
 		createTempTable(getLocalDb(), "program");
 		insertQuery = "INSERT INTO temp_program (program_id,concept_id,outcomes_concept_id,creator,date_created,changed_by,date_changed,retired,name,description,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT program_id,concept_id,outcomes_concept_id,creator,date_created,changed_by,date_changed,retired,name,description,uuid FROM program "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO program (program_id,concept_id,outcomes_concept_id,creator,date_created,changed_by,date_changed,retired,name,description,uuid) SELECT program_id,concept_id,outcomes_concept_id,creator,date_created,changed_by,date_changed,retired,name,description,uuid FROM temp_program";
+		localInsert(insertQuery);
+
 		// program_workflow
 		createTempTable(getLocalDb(), "program_workflow");
 		insertQuery = "INSERT INTO temp_program_workflow(program_workflow_id,program_id,concept_id,creator,date_created,retired,changed_by,date_changed,uuid)VALUES(?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT program_workflow_id,program_id,concept_id,creator,date_created,retired,changed_by,date_changed,uuid FROM openmrs.program_workflow "
+		selectQuery = "SELECT program_workflow_id,program_id,concept_id,creator,date_created,retired,changed_by,date_changed,uuid FROM program_workflow "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO program_workflow(program_workflow_id,program_id,concept_id,creator,date_created,retired,changed_by,date_changed,uuid) SELECT program_workflow_id,program_id,concept_id,creator,date_created,retired,changed_by,date_changed,uuid FROM temp_program_workflow";
+		localInsert(insertQuery);
+
 		// program_workflow_state
 		createTempTable(getLocalDb(), "program_workflow_state");
 		insertQuery = "INSERT INTO temp_program_workflow_state(program_workflow_state_id,program_workflow_id,concept_id,initial,terminal,creator,date_created,retired,changed_by,date_changed,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT program_workflow_state_id,program_workflow_id,concept_id,initial,terminal,creator,date_created,retired,changed_by,date_changed,uuid FROM program_workflow_state "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO program_workflow_state(program_workflow_state_id,program_workflow_id,concept_id,initial,terminal,creator,date_created,retired,changed_by,date_changed,uuid) SELECT program_workflow_state_id,program_workflow_id,concept_id,initial,terminal,creator,date_created,retired,changed_by,date_changed,uuid FROM temp_program_workflow_state";
+		localInsert(insertQuery);
+
 		// order_type
 		createTempTable(getLocalDb(), "order_type");
 		insertQuery = "INSERT INTO temp_order_type(order_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,java_class_name,parent,changed_by,date_changed)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT order_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,java_class_name,parent,changed_by,date_changed FROM order_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO order_type(order_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,java_class_name,parent,changed_by,date_changed) SELECT order_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,java_class_name,parent,changed_by,date_changed FROM temp_order_type";
+		localInsert(insertQuery);
+
 		// scheduler_task_config
 		createTempTable(getLocalDb(), "scheduler_task_config");
 		insertQuery = "INSERT INTO temp_scheduler_task_config(task_config_id,name,description,schedulable_class,start_time,start_time_pattern,repeat_interval,start_on_startup,started,created_by,date_created,changed_by,date_changed,last_execution_time,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT task_config_id,name,description,schedulable_class,start_time,start_time_pattern,repeat_interval,start_on_startup,started,created_by,date_created,changed_by,date_changed,last_execution_time,uuid FROM scheduler_task_config "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO scheduler_task_config(task_config_id,name,description,schedulable_class,start_time,start_time_pattern,repeat_interval,start_on_startup,started,created_by,date_created,changed_by,date_changed,last_execution_time,uuid) SELECT task_config_id,name,description,schedulable_class,start_time,start_time_pattern,repeat_interval,start_on_startup,started,created_by,date_created,changed_by,date_changed,last_execution_time,uuid FROM temp_scheduler_task_config";
+		localInsert(insertQuery);
+
 		// scheduler_task_config_property
 		createTempTable(getLocalDb(), "scheduler_task_config_property");
 		insertQuery = "INSERT INTO temp_scheduler_task_config_property(task_config_property_id,name,value,task_config_id)VALUES(?,?,?,?)";
 		selectQuery = "SELECT task_config_property_id,name,value,task_config_id FROM scheduler_task_config_property";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO scheduler_task_config_property(task_config_property_id,name,value,task_config_id) SELECT task_config_property_id,name,value,task_config_id FROM temp_scheduler_task_config_property";
+		localInsert(insertQuery);
+
 		// visit_type
 		createTempTable(getLocalDb(), "visit_type");
 		insertQuery = "INSERT INTO temp_visit_type(visit_type_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT visit_type_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM visit_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO visit_type(visit_type_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT visit_type_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_visit_type";
+		localInsert(insertQuery);
+
 		// visit_attribute_type
 		createTempTable(getLocalDb(), "visit_attribute_type");
 		insertQuery = "INSERT INTO temp_visit_attribute_type(visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM visit_attribute_type "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO visit_attribute_type(visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_visit_attribute_type";
+		localInsert(insertQuery);
 	}
 
 	/**
@@ -679,6 +829,25 @@ public class ImportJob implements Job {
 		}
 		// For Progress Bar
 		GfatmImportMain.gfatmImport.updateProgress(1);
+	}
+
+	/**
+	 * Execute insert query on local database
+	 * 
+	 * @param insertQuery
+	 */
+	public void localInsert(String insertQuery) {
+		GfatmImportMain.gfatmImport
+				.log("Executing: " + insertQuery, Level.INFO);
+		try {
+			getLocalDb().runCommand(CommandType.INSERT, insertQuery);
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public DatabaseUtil getLocalDb() {

@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>gfatm-sync</groupId>
   <artifactId>gfatm-import</artifactId>
-  <version>0.1.5-alpha</version>
+  <version>0.1.6-alpha</version>
   <name>Global Fund TB Import</name>
   <description>Data Import processes for GFATM databases</description>
   <build>

@@ -15,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Date;
 import java.util.logging.Level;
 
@@ -94,6 +95,13 @@ public class ImportJob implements Job {
 		JobDataMap dataMap = context.getMergedJobDataMap();
 		ImportJob importJob = (ImportJob) dataMap.get("importJob");
 		initialize(importJob);
+		// Disable foreign key check
+		try {
+			Statement statement = localDb.getConnection().createStatement();
+			statement.execute("SET FOREIGN_KEY_CHECKS=0");
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
 		if (isImportUsers()) {
 			try {
 				importUsers();
@@ -132,6 +140,13 @@ public class ImportJob implements Job {
 						+ e.getMessage(), Level.WARNING);
 			}
 		}
+		// Enable foreign key check
+		try {
+			Statement statement = localDb.getConnection().createStatement();
+			statement.execute("SET FOREIGN_KEY_CHECKS=1");
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
 		GfatmImportMain.gfatmImport.updateProgress(progressRange);
 		GfatmImportMain.gfatmImport.setMode(ImportStatus.WAITING);
 	}
@@ -144,19 +159,17 @@ public class ImportJob implements Job {
 	 * @return
 	 */
 	public String filter(String createDateName, String updateDateName) {
-		StringBuilder filter = new StringBuilder();
+		StringBuilder filter = new StringBuilder(" WHERE 1=1 ");
 		if (isFilterDate() & getDateFrom() != null & getDateTo() != null) {
-			filter.append(" WHERE " + createDateName);
+			filter.append("AND " + createDateName);
 			filter.append(" BETWEEN DATE('"
-					+ DateTimeUtil.getSqlDate(getDateFrom()) + "')");
-			filter.append(" AND DATE('" + DateTimeUtil.getSqlDate(getDateTo())
-					+ "')");
+					+ DateTimeUtil.getSqlDate(getDateFrom()) + "') ");
+			filter.append("AND CURRENT_TIMESTAMP()");
 			if (updateDateName != null) {
 				filter.append(" OR " + updateDateName);
 				filter.append(" BETWEEN DATE('"
-						+ DateTimeUtil.getSqlDate(getDateFrom()) + "')");
-				filter.append(" AND DATE('"
-						+ DateTimeUtil.getSqlDate(getDateTo()) + "')");
+						+ DateTimeUtil.getSqlDate(getDateFrom()) + "') ");
+				filter.append(" AND CURRENT_TIMESTAMP()");
 			}
 		}
 		return filter.toString();
@@ -173,6 +186,38 @@ public class ImportJob implements Job {
 				Level.INFO);
 		String selectQuery = "";
 		String insertQuery = "";
+
+		// users
+		createTempTable(getLocalDb(), "users");
+		insertQuery = "INSERT INTO temp_users(user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid FROM users "
+				+ filter("date_created", "date_changed")
+				+ " ORDER BY date_created";
+		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO users(user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid) SELECT user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid FROM temp_users";
+		localInsert(insertQuery);
+
+		// person (only for users)
+		createTempTable(getLocalDb(), "person");
+		insertQuery = "INSERT INTO temp_person(person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated,birthtime)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated,birthtime FROM person "
+				+ filter("date_created", "date_changed")
+				+ " AND person_id IN (SELECT person_id FROM users)"
+				+ " ORDER BY date_created";
+		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO person(person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated,birthtime) SELECT person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated,birthtime FROM temp_person";
+		localInsert(insertQuery);
+
+		// person_name (only for users)
+		createTempTable(getLocalDb(), "person_name");
+		insertQuery = "INSERT INTO temp_person_name(person_name_id,preferred,person_id,prefix,given_name,middle_name,family_name_prefix,family_name,family_name2,family_name_suffix,degree,creator,date_created,voided,voided_by,date_voided,void_reason,changed_by,date_changed,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT person_name_id,preferred,person_id,prefix,given_name,middle_name,family_name_prefix,family_name,family_name2,family_name_suffix,degree,creator,date_created,voided,voided_by,date_voided,void_reason,changed_by,date_changed,uuid FROM person_name "
+				+ filter("date_created", "date_changed")
+				+ " AND person_id IN (SELECT person_id FROM users)"
+				+ " ORDER BY date_created";
+		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO person_name(person_name_id,preferred,person_id,prefix,given_name,middle_name,family_name_prefix,family_name,family_name2,family_name_suffix,degree,creator,date_created,voided,voided_by,date_voided,void_reason,changed_by,date_changed,uuid) SELECT person_name_id,preferred,person_id,prefix,given_name,middle_name,family_name_prefix,family_name,family_name2,family_name_suffix,degree,creator,date_created,voided,voided_by,date_voided,void_reason,changed_by,date_changed,uuid FROM temp_person_name";
+		localInsert(insertQuery);
 
 		// privilege
 		createTempTable(getLocalDb(), "privilege");
@@ -234,16 +279,6 @@ public class ImportJob implements Job {
 		selectQuery = "SELECT parent_role,child_role FROM role_role";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO role_role(parent_role,child_role) SELECT parent_role,child_role FROM temp_role_role";
-		localInsert(insertQuery);
-
-		// users
-		createTempTable(getLocalDb(), "users");
-		insertQuery = "INSERT INTO temp_users(user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid FROM users "
-				+ filter("date_created", "date_changed")
-				+ " ORDER BY date_created";
-		remoteSelectInsert(selectQuery, insertQuery);
-		insertQuery = "INSERT IGNORE INTO users(user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid) SELECT user_id,system_id,username,password,salt,secret_question,secret_answer,creator,date_created,changed_by,date_changed,person_id,retired,retired_by,date_retired,retire_reason,uuid FROM temp_users";
 		localInsert(insertQuery);
 
 		// user_property

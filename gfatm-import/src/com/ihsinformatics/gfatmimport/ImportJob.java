@@ -199,13 +199,13 @@ public class ImportJob implements Job {
 
 		// person (only for users)
 		createTempTable(getLocalDb(), "person");
-		insertQuery = "INSERT INTO temp_person(person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated,birthtime)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated,birthtime FROM person "
+		insertQuery = "INSERT INTO temp_person(person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated FROM person "
 				+ filter("date_created", "date_changed")
 				+ " AND person_id IN (SELECT person_id FROM users)"
 				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
-		insertQuery = "INSERT IGNORE INTO person(person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated,birthtime) SELECT person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated,birthtime FROM temp_person";
+		insertQuery = "INSERT IGNORE INTO person(person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated) SELECT person_id,gender,birthdate,birthdate_estimated,dead,death_date,cause_of_death,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason,uuid,deathdate_estimated FROM temp_person";
 		localInsert(insertQuery);
 
 		// person_name (only for users)
@@ -699,6 +699,8 @@ public class ImportJob implements Job {
 			GfatmImportMain.gfatmImport.updateProgress(1);
 		}
 		String[] updateQueries = {
+				"UPDATE person AS a INNER JOIN temp_person as b ON a.uuid = b.uuid b.person_id = a.person_id, b.gender = a.gender, b.birthdate = a.birthdate, b.birthdate_estimated = a.birthdate_estimated, b.dead = a.dead0, b.death_date = a.death_date, b.cause_of_death = a.cause_of_death, b.creator = a.creator, b.date_created = a.date_created, b.changed_by = a.changed_by, b.date_changed = a.date_changed, b.voided = a.voided0, b.voided_by = a.voided_by, b.date_voided = a.date_voided, b.void_reason = a.void_reason, b.deathdate_estimated = a.deathdate_estimated",
+				"UPDATE person_name AS a INNER JOIN temp_person_name as b ON a.uuid = b.uuid b.person_name_id = a.person_name_id, b.preferred = a.preferred, b.person_id = a.person_id, b.prefix = a.prefix, b.given_name = a.given_name, b.middle_name = a.middle_name, b.family_name_prefix = a.family_name_prefix, b.family_name = a.family_name, b.family_name2 = a.family_name, b.family_name_suffix = a.family_name_suffix, b.degree = a.degree, b.creator = a.creator, b.date_created = a.date_created, b.voided = a.voided, b.voided_by = a.voided_by, b.date_voided = a.date_voided, b.void_reason = a.void_reason, b.changed_by = a.changed_by, b.date_changed = a.date_changed",
 				"UPDATE privilege AS a INNER JOIN temp_privilege as b ON a.uuid = b.uuid SET a.description = b.description",
 				"UPDATE provider_attribute_type AS a INNER JOIN temp_provider_attribute_type as b ON a.uuid = b.uuid SET a.name = b.name, a.description = b.description, a.datatype = b.datatype, a.datatype_config = b.datatype_config, a.preferred_handler = b.preferred_handler, a.handler_config = b.handler_config, a.min_occurs = b.min_occurs, a.max_occurs = b.max_occurs, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
 				"UPDATE provider AS a INNER JOIN temp_provider as b ON a.uuid = b.uuid SET a.person_id = b.person_id, a.name = b.name, a.identifier = b.identifier, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason, a.provider_role_id = b.provider_role_id",

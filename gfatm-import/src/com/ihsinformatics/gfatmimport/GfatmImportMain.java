@@ -22,7 +22,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.ParseException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Properties;
@@ -65,7 +64,6 @@ import org.quartz.impl.StdSchedulerFactory;
 import com.ihsinformatics.util.DatabaseUtil;
 import com.ihsinformatics.util.DateTimeUtil;
 import com.ihsinformatics.util.RegexUtil;
-import com.ihsinformatics.util.VersionUtil;
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.FormSpecs;
@@ -78,13 +76,12 @@ import com.jgoodies.forms.layout.RowSpec;
 public class GfatmImportMain implements ActionListener {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
-	private static final VersionUtil version = new VersionUtil();
 	private static final String userHome = System.getProperty("user.home")
 			+ System.getProperty("file.separator") + "gfatm";
 	private static String propertiesFile = userHome
 			+ System.getProperty("file.separator") + "gfatm-import.properties";
 	private static Properties props;
-	private static String title = "GFATM Import";
+	private static String title = "GFATM Import (0.2.0-beta)";
 	private static Scheduler scheduler;
 	private DatabaseUtil serverDb;
 	private DatabaseUtil localDb;
@@ -161,8 +158,7 @@ public class GfatmImportMain implements ActionListener {
 				try {
 					gfatmImport = new GfatmImportMain();
 					gfatmImport.readProperties(propertiesFile);
-					gfatmImport.mainFrame.setTitle(title + " "
-							+ version.toString());
+					gfatmImport.mainFrame.setTitle(title);
 					gfatmImport.mainFrame.setVisible(true);
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -374,19 +370,8 @@ public class GfatmImportMain implements ActionListener {
 			if (propFile != null) {
 				props = new Properties();
 				props.load(propFile);
-				String versionStr = props.getProperty("app.version");
-				try {
-					version.parseVersion(versionStr);
-				} catch (NumberFormatException e) {
-					log("Invalid version in properties file.", Level.WARNING);
-				} catch (NullPointerException e) {
-					log("Version not found in properties file.", Level.WARNING);
-				} catch (ParseException e) {
-					log("Bad version name found in properties file.",
-							Level.WARNING);
-				}
 				String serverUrl = props.getProperty("remote.connection.url",
-						"jdbc:mysql://202.141.249.106:6847/openmrs");
+						"jdbc:mysql://server.globalfundtb.com:3306/openmrs");
 				serverUrlTextField.setText(serverUrl);
 				String serverUsername = props.getProperty(
 						"remote.connection.username", "gfatm_user");
@@ -572,6 +557,9 @@ public class GfatmImportMain implements ActionListener {
 		Calendar to = Calendar.getInstance();
 		switch (dataFromComboBox.getSelectedIndex()) {
 		case 0: // Today
+			from.set(Calendar.HOUR_OF_DAY, 0);
+			from.set(Calendar.MINUTE, 0);
+			from.set(Calendar.SECOND, 0);
 			break;
 		case 1: // Yesterday
 			from.set(Calendar.DATE, from.get(Calendar.DATE) - 1);

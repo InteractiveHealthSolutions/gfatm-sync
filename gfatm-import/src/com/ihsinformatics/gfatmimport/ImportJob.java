@@ -162,13 +162,13 @@ public class ImportJob implements Job {
 		StringBuilder filter = new StringBuilder(" WHERE 1=1 ");
 		if (isFilterDate() & getDateFrom() != null & getDateTo() != null) {
 			filter.append("AND " + createDateName);
-			filter.append(" BETWEEN DATE('"
-					+ DateTimeUtil.getSqlDate(getDateFrom()) + "') ");
+			filter.append(" BETWEEN TIMESTAMP('"
+					+ DateTimeUtil.getSqlDateTime(getDateFrom()) + "') ");
 			filter.append("AND CURRENT_TIMESTAMP()");
 			if (updateDateName != null) {
 				filter.append(" OR " + updateDateName);
-				filter.append(" BETWEEN DATE('"
-						+ DateTimeUtil.getSqlDate(getDateFrom()) + "') ");
+				filter.append(" BETWEEN TIMESTAMP('"
+						+ DateTimeUtil.getSqlDateTime(getDateFrom()) + "') ");
 				filter.append(" AND CURRENT_TIMESTAMP()");
 			}
 		}

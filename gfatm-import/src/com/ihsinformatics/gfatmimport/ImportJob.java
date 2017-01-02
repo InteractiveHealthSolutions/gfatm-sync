@@ -102,7 +102,7 @@ public class ImportJob implements Job {
 		} catch (SQLException e1) {
 			e1.printStackTrace();
 		}
-		if (isImportUsers()) {
+		if (isImportUsers() && GfatmImportMain.mode != ImportStatus.STOPPED) {
 			try {
 				importUsers();
 				updateUsers();
@@ -111,7 +111,7 @@ public class ImportJob implements Job {
 						+ e.getMessage(), Level.WARNING);
 			}
 		}
-		if (isImportLocations()) {
+		if (isImportLocations() && GfatmImportMain.mode != ImportStatus.STOPPED) {
 			try {
 				importLocations();
 				updateLocations();
@@ -121,7 +121,7 @@ public class ImportJob implements Job {
 						Level.WARNING);
 			}
 		}
-		if (isImportConcepts()) {
+		if (isImportConcepts() && GfatmImportMain.mode != ImportStatus.STOPPED) {
 			try {
 				importConcepts();
 				updateConcepts();
@@ -131,7 +131,8 @@ public class ImportJob implements Job {
 						Level.WARNING);
 			}
 		}
-		if (isImportOtherMetadata()) {
+		if (isImportOtherMetadata()
+				&& GfatmImportMain.mode != ImportStatus.STOPPED) {
 			try {
 				importMetadata();
 				updateMetadata();
@@ -567,7 +568,7 @@ public class ImportJob implements Job {
 
 		// form_field
 		createTempTable(getLocalDb(), "form_field");
-		insertQuery = "INSERT INTO temp_form_field(form_field_id,orm_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		insertQuery = "INSERT INTO temp_form_field(form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid FROM form_field "
 				+ filter("date_created", null) + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
@@ -703,7 +704,7 @@ public class ImportJob implements Job {
 				"UPDATE person_name AS a INNER JOIN temp_person_name as b ON a.uuid = b.uuid b.person_name_id = a.person_name_id, b.preferred = a.preferred, b.person_id = a.person_id, b.prefix = a.prefix, b.given_name = a.given_name, b.middle_name = a.middle_name, b.family_name_prefix = a.family_name_prefix, b.family_name = a.family_name, b.family_name2 = a.family_name, b.family_name_suffix = a.family_name_suffix, b.degree = a.degree, b.creator = a.creator, b.date_created = a.date_created, b.voided = a.voided, b.voided_by = a.voided_by, b.date_voided = a.date_voided, b.void_reason = a.void_reason, b.changed_by = a.changed_by, b.date_changed = a.date_changed",
 				"UPDATE privilege AS a INNER JOIN temp_privilege as b ON a.uuid = b.uuid SET a.description = b.description",
 				"UPDATE provider_attribute_type AS a INNER JOIN temp_provider_attribute_type as b ON a.uuid = b.uuid SET a.name = b.name, a.description = b.description, a.datatype = b.datatype, a.datatype_config = b.datatype_config, a.preferred_handler = b.preferred_handler, a.handler_config = b.handler_config, a.min_occurs = b.min_occurs, a.max_occurs = b.max_occurs, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
-				"UPDATE provider AS a INNER JOIN temp_provider as b ON a.uuid = b.uuid SET a.person_id = b.person_id, a.name = b.name, a.identifier = b.identifier, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason, a.provider_role_id = b.provider_role_id",
+				"UPDATE provider AS a INNER JOIN temp_provider as b ON a.uuid = b.uuid SET a.person_id = b.person_id, a.name = b.name, a.identifier = b.identifier, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
 				"UPDATE provider_attribute AS a INNER JOIN temp_provider_attribute as b ON a.uuid = b.uuid SET a.provider_id = b.provider_id, a.attribute_type_id = b.attribute_type_id, a.value_reference = b.value_reference, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.voided = b.voided, a.voided_by = b.voided_by, a.date_voided = b.date_voided, a.void_reason = b.void_reason",
 				"UPDATE role AS a INNER JOIN temp_role as b ON a.uuid = b.uuid SET a.description = b.description, a.uuid = b.uuid",
 				"UPDATE users AS a INNER JOIN temp_users as b ON a.uuid = b.uuid SET a.system_id = b.system_id, a.username = b.username, a.password = b.password, a.salt = b.salt, a.secret_question = b.secret_question, a.secret_answer = b.secret_answer, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.person_id = b.person_id, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",

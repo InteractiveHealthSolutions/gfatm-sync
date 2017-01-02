@@ -81,7 +81,8 @@ public class GfatmImportMain implements ActionListener {
 	private static String propertiesFile = userHome
 			+ System.getProperty("file.separator") + "gfatm-import.properties";
 	private static Properties props;
-	private static String title = "GFATM Import (0.2.0-beta)";
+	private static String title = "GFATM Import (0.2.1-beta)";
+	public static ImportStatus mode = ImportStatus.WAITING;
 	private static Scheduler scheduler;
 	private DatabaseUtil serverDb;
 	private DatabaseUtil localDb;
@@ -329,7 +330,7 @@ public class GfatmImportMain implements ActionListener {
 		centerPanel.add(lblImportOption, "2, 8, 5, 1");
 		ComboBoxModel<String> comboBoxModel = new DefaultComboBoxModel<String>(
 				new String[] { "Hourly", "Every 6 hours", "Twice a day",
-						"Daily" });
+						"Daily", "10 minutes (QA)" });
 		importOptionComboBox.setModel(comboBoxModel);
 		centerPanel.add(importOptionComboBox, "2, 10, fill, default");
 		centerPanel.add(importButton, "4, 10, fill, default");
@@ -414,6 +415,7 @@ public class GfatmImportMain implements ActionListener {
 	 * @param importStatus
 	 */
 	public void setMode(ImportStatus importStatus) {
+		mode = importStatus;
 		Component[] clientComponents = clientPanel.getComponents();
 		Component[] serverComponents = serverPanel.getComponents();
 		Component[] otherComponents = { dataFromComboBox, importOptionComboBox,
@@ -530,16 +532,19 @@ public class GfatmImportMain implements ActionListener {
 		int interval = -1;
 		switch (importOptionComboBox.getSelectedIndex()) {
 		case 0:
-			interval = 1;
+			interval = 60;
 			break;
 		case 1:
-			interval = 6;
+			interval = 360;
 			break;
 		case 2:
-			interval = 12;
+			interval = 720;
+			break;
+		case 3:
+			interval = 1440;
 			break;
 		default:
-			interval = 24;
+			interval = 10;
 		}
 		scheduler = StdSchedulerFactory.getDefaultScheduler();
 		scheduler.start();
@@ -587,7 +592,7 @@ public class GfatmImportMain implements ActionListener {
 		importJobObj.setDateTo(to.getTime());
 		job.getJobDataMap().put("importJob", importJobObj);
 		SimpleScheduleBuilder scheduleBuilder = SimpleScheduleBuilder
-				.simpleSchedule().withIntervalInHours(interval);
+				.simpleSchedule().withIntervalInMinutes(interval);
 		Trigger trigger = TriggerBuilder.newTrigger()
 				.withIdentity("importTrigger", "importGroup")
 				.withSchedule(scheduleBuilder).build();

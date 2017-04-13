@@ -81,7 +81,7 @@ public class GfatmImportMain implements ActionListener {
 	private static String propertiesFile = userHome
 			+ System.getProperty("file.separator") + "gfatm-import.properties";
 	private static Properties props;
-	private static String title = "GFATM Import (0.2.1-beta)";
+	private static String title = "GFATM Import ";
 	public static ImportStatus mode = ImportStatus.WAITING;
 	private static Scheduler scheduler;
 	private DatabaseUtil serverDb;
@@ -330,7 +330,7 @@ public class GfatmImportMain implements ActionListener {
 		centerPanel.add(lblImportOption, "2, 8, 5, 1");
 		ComboBoxModel<String> comboBoxModel = new DefaultComboBoxModel<String>(
 				new String[] { "Hourly", "Every 6 hours", "Twice a day",
-						"Daily", "10 minutes (QA)" });
+						"Daily" });
 		importOptionComboBox.setModel(comboBoxModel);
 		centerPanel.add(importOptionComboBox, "2, 10, fill, default");
 		centerPanel.add(importButton, "4, 10, fill, default");
@@ -380,7 +380,7 @@ public class GfatmImportMain implements ActionListener {
 				String serverPassword = props.getProperty(
 						"remote.connection.password", "");
 				serverPasswordField.setText(serverPassword);
-				String localUrl = props.getProperty("localDb.connection.url",
+				String localUrl = props.getProperty("local.connection.url",
 						"jdbc:mysql://localhost:3306/openmrs");
 				String serverDriver = props.getProperty(
 						"remote.connection.driver", "com.mysql.jdbc.Driver");
@@ -401,6 +401,7 @@ public class GfatmImportMain implements ActionListener {
 				String localDatabase = props.getProperty(
 						"local.connection.database", "openmrs");
 				localDatabaseTextField.setText(localDatabase);
+				title += props.getProperty("app.version");
 			}
 		} catch (FileNotFoundException e1) {
 			log("Properties file not found or is inaccessible.", Level.SEVERE);
@@ -544,7 +545,7 @@ public class GfatmImportMain implements ActionListener {
 			interval = 1440;
 			break;
 		default:
-			interval = 10;
+			interval = 2;
 		}
 		scheduler = StdSchedulerFactory.getDefaultScheduler();
 		scheduler.start();

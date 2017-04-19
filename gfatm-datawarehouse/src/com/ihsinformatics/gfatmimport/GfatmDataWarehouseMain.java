@@ -90,19 +90,24 @@ public class GfatmDataWarehouseMain {
 		GfatmDataWarehouseMain gfatm = new GfatmDataWarehouseMain();
 		gfatm.readProperties(propertiesFile);
 		ImportController importController = new ImportController(gfatm.localDb);
-		if (doReset) {
-			gfatm.createDatawarehouse();
-			importController.importData(true);
-		}
-		if (doUpdateDw) {
-			importController.importData(false);
-		}
-		if (doCreateDw) {
-			DimensionController dimController = new DimensionController(
-					gfatm.localDb);
-			dimController.modelDimensions();
-			FactController factController = new FactController(gfatm.localDb);
-			factController.modelFacts();
+		try {
+			if (doReset) {
+				gfatm.createDatawarehouse();
+				importController.importData(true);
+			}
+			if (doUpdateDw) {
+				importController.importData(false);
+			}
+			if (doCreateDw) {
+				DimensionController dimController = new DimensionController(
+						gfatm.localDb);
+				dimController.modelDimensions();
+				FactController factController = new FactController(
+						gfatm.localDb);
+				factController.modelFacts();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 		System.exit(0);
 	}

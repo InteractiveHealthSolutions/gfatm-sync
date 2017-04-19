@@ -16,10 +16,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.util.Date;
 import java.util.logging.Logger;
 
 import com.ihsinformatics.util.CommandType;
 import com.ihsinformatics.util.DatabaseUtil;
+import com.ihsinformatics.util.DateTimeUtil;
 
 /**
  * @author owais.hussain@ihsinformatics.com
@@ -30,9 +33,39 @@ public class ImportController {
 	private static final Logger log = Logger.getLogger(Class.class.getName());
 	private DatabaseUtil localDb;
 	private DatabaseUtil remoteDb;
+	private Date fromDate;
+	private Date toDate;
 
 	public ImportController(DatabaseUtil db) {
 		this.localDb = db;
+		this.fromDate = new Date();
+		this.toDate = new Date();
+	}
+
+	/**
+	 * Returns a filter for select queries
+	 * 
+	 * @param createDateName
+	 * @param updateDateName
+	 * @param fromDate
+	 * @param toDate
+	 * @return
+	 */
+	public String filter(String createDateName, String updateDateName) {
+		StringBuilder filter = new StringBuilder(" WHERE 1=1 ");
+		filter.append("AND (" + createDateName);
+		filter.append(" BETWEEN TIMESTAMP('"
+				+ DateTimeUtil.getSqlDateTime(fromDate) + "') ");
+		filter.append("AND TIMESTAMP('" + DateTimeUtil.getSqlDateTime(toDate)
+				+ "'))");
+		if (updateDateName != null) {
+			filter.append(" OR (" + updateDateName);
+			filter.append(" BETWEEN TIMESTAMP('"
+					+ DateTimeUtil.getSqlDateTime(fromDate) + "') ");
+			filter.append("AND TIMESTAMP('" + DateTimeUtil.getSqlDateTime(toDate)
+					+ "'))");
+		}
+		return filter.toString();
 	}
 
 	/**
@@ -42,9 +75,13 @@ public class ImportController {
 	 * @param insertQuery
 	 * @return
 	 * @throws SQLException
+	 * @throws ClassNotFoundException
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
 	 */
 	public void remoteSelectInsert(String selectQuery, String insertQuery)
-			throws SQLException {
+			throws SQLException, InstantiationException,
+			IllegalAccessException, ClassNotFoundException {
 		Connection remoteConnection = remoteDb.getConnection();
 		Connection localConnection = localDb.getConnection();
 		remoteSelectInsert(selectQuery, insertQuery, remoteConnection,
@@ -71,7 +108,8 @@ public class ImportController {
 		ResultSetMetaData metaData = data.getMetaData();
 		while (data.next()) {
 			for (int i = 1; i <= metaData.getColumnCount(); i++) {
-				target.setString(i, data.getString(i));
+				String value = data.getString(i);
+				target.setString(i, value);
 			}
 			target.executeUpdate();
 		}
@@ -80,94 +118,118 @@ public class ImportController {
 	/**
 	 * Load data from person-related tables into data warehouse
 	 * 
+	 * @param remoteDb
 	 * @param implementationId
-	 * @throws ClassNotFoundException
-	 * @throws IllegalAccessException
 	 * @throws InstantiationException
+	 * @throws IllegalAccessException
+	 * @throws ClassNotFoundException
 	 */
-	public void insertPeopleData(DatabaseUtil remoteDb, int implementationId)
+	public void importPeopleData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException,
 			ClassNotFoundException {
 		String database = remoteDb.getDbName();
-		String[] tables = { "person_attribute_type", "person",
-				"person_address", "person_attribute", "person_name" };
-		for (String table : tables) {
-			try {
-				String insertQuery = "INSERT INTO " + table + " ";
-				String selectQuery = "SELECT 0,'" + implementationId
-						+ "', t.* FROM " + database + "." + table
-						+ " AS t WHERE t.uuid NOT IN (SELECT uuid FROM "
-						+ table + ")";
-				log.info("Inserting data from " + database + "." + table
-						+ " into data warehouse");
-				remoteSelectInsert(selectQuery, insertQuery,
-						remoteDb.getConnection(), localDb.getConnection());
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+		String insertQuery;
+		String selectQuery;
+		try {
+			// Person Attribute Type
+			insertQuery = "INSERT INTO person_attribute_type (surrogate_key, implementation_id, person_attribute_type_id, name, description, format, foreign_key, searchable, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, edit_privilege, sort_weight, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', person_attribute_type_id, name, description, format, foreign_key, searchable, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, edit_privilege, sort_weight, uuid FROM " + database + ".person_attribute_type AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".person_attribute_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Person
+			insertQuery = "INSERT INTO person (surrogate_key, implementation_id, person_id, gender, birthdate, birthdate_estimated, dead, death_date, cause_of_death, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', person_id, gender, birthdate, birthdate_estimated, dead, death_date, cause_of_death, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid FROM " + database + ".person AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".person into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Person Address
+			insertQuery = "INSERT INTO person_address (surrogate_key, implementation_id, person_address_id, person_id, preferred, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, start_date, end_date, creator, date_created, voided, voided_by, date_voided, void_reason, county_district, address3, address4, address5, address6, date_changed, changed_by, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', person_address_id, person_id, preferred, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, start_date, end_date, creator, date_created, voided, voided_by, date_voided, void_reason, county_district, address3, address4, address5, address6, date_changed, changed_by, uuid FROM " + database + ".person_address AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".person_address into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Person Attribute
+			insertQuery = "INSERT INTO person_attribute (surrogate_key, implementation_id, person_attribute_id, person_id, value, person_attribute_type_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', person_attribute_id, person_id, value, person_attribute_type_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid FROM " + database + ".person_attribute AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".person_attribute into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Person Name
+			insertQuery = "INSERT INTO person_name (surrogate_key, implementation_id, person_name_id, preferred, person_id, prefix, given_name, middle_name, family_name_prefix, family_name, family_name2, family_name_suffix, degree, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', person_name_id, preferred, person_id, prefix, given_name, middle_name, family_name_prefix, family_name, family_name2, family_name_suffix, degree, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, uuid FROM " + database + ".person_name AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".person_name into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
 	}
 
 	/**
 	 * Load data from user-related tables into data warehouse
 	 * 
+	 * @param remoteDb
 	 * @param implementationId
-	 * @throws ClassNotFoundException
-	 * @throws IllegalAccessException
 	 * @throws InstantiationException
+	 * @throws IllegalAccessException
+	 * @throws ClassNotFoundException
 	 */
-	public void insertUserData(DatabaseUtil remoteDb, int implementationId)
+	public void importUserData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException,
 			ClassNotFoundException {
 		String database = remoteDb.getDbName();
-		String[] tables = { "role", "privilege", "users", "provider" };
-		for (String table : tables) {
-			StringBuilder query = new StringBuilder();
-			query.append("INSERT INTO " + table + " ");
-			query.append("SELECT 0,'" + implementationId + "', t.* FROM "
-					+ database + "." + table + " AS t ");
-			query.append("WHERE t.uuid NOT IN (SELECT uuid FROM " + table + ")");
-			log.info("Inserting data from " + database + "." + table
-					+ " into data warehouse");
-			localDb.runCommand(CommandType.INSERT, query.toString());
+		String insertQuery;
+		String selectQuery;
+		try {
+			// Role
+			insertQuery = "INSERT IGNORE INTO role (surrogate_key, implementation_id, role, description, uuid) VALUES (?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', role, description, uuid FROM " + database + ".role AS t ";
+			log.info("Inserting data from " + database + ".role into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Role Role
+			insertQuery = "INSERT IGNORE INTO role_role (surrogate_key, implementation_id, parent_role, child_role) VALUES (?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', parent_role, child_role FROM " + database + ".role_role AS t ";
+			log.info("Inserting data from " + database + ".role_role into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Privilege
+			insertQuery = "INSERT IGNORE INTO privilege (surrogate_key, implementation_id, privilege, description, uuid) VALUES (?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', privilege, description, uuid FROM " + database + ".privilege AS t ";
+			log.info("Inserting data from " + database + ".privilege into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Role Privilege
+			insertQuery = "INSERT IGNORE INTO role_privilege (surrogate_key, implementation_id, role, privilege) VALUES (?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', role, privilege FROM " + database + ".role_privilege AS t ";
+			log.info("Inserting data from " + database + ".role_privilege into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Users
+			insertQuery = "INSERT INTO users (surrogate_key, implementation_id, user_id, system_id, username, password, salt, secret_question, secret_answer, creator, date_created, changed_by, date_changed, person_id, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', user_id, system_id, username, password, salt, secret_question, secret_answer, creator, date_created, changed_by, date_changed, person_id, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".users AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".users into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// User Property
+			insertQuery = "INSERT IGNORE INTO user_property (surrogate_key, implementation_id, user_id, property, property_value) VALUES (?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', user_id, property, property_value FROM " + database + ".user_property AS t ";
+			log.info("Inserting data from " + database + ".user_property into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// User Role
+			insertQuery = "INSERT IGNORE INTO user_role (surrogate_key, implementation_id, user_id, role) VALUES (?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', user_id, role FROM " + database + ".user_role AS t ";
+			log.info("Inserting data from " + database + ".user_role into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Provider Attribute Type
+			insertQuery = "INSERT INTO provider_attribute_type (surrogate_key, implementation_id, provider_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', provider_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".provider_attribute_type AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".provider_attribute_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Provider
+			insertQuery = "INSERT INTO provider (surrogate_key, implementation_id, provider_id, person_id, name, identifier, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', provider_id, person_id, name, identifier, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".provider AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".provider into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Provider Attribute
+			insertQuery = "INSERT INTO provider_attribute (surrogate_key, implementation_id, provider_attribute_id, provider_id, attribute_type_id, value_reference, uuid, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', provider_attribute_id, provider_id, attribute_type_id, value_reference, uuid, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason FROM " + database + ".provider_attribute AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".provider_attribute into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
-		// Deal with tables with no UUID and foreign relationship
-		StringBuilder query = new StringBuilder();
-		query.append("INSERT INTO role_role ");
-		query.append("SELECT 0,'" + implementationId + "', t.* FROM "
-				+ database + ".role_role AS t ");
-		query.append("WHERE CONCAT(t.parent_role, t.child_role) NOT IN (SELECT CONCAT(parent_role, child_role) FROM role_role WHERE implementation_id="
-				+ implementationId + ")");
-		log.info("Inserting data from " + database
-				+ ".role_role into data warehouse");
-		localDb.runCommand(CommandType.INSERT, query.toString());
-		query = new StringBuilder();
-		query.append("INSERT INTO role_privilege ");
-		query.append("SELECT 0,'" + implementationId + "', t.* FROM "
-				+ database + ".role_privilege AS t ");
-		query.append("WHERE CONCAT(t.role, t.privilege) NOT IN (SELECT CONCAT(role, privilege) FROM role_privilege WHERE implementation_id="
-				+ implementationId + ")");
-		log.info("Inserting data from " + database
-				+ ".role_privilege into data warehouse");
-		localDb.runCommand(CommandType.INSERT, query.toString());
-		query = new StringBuilder();
-		query.append("INSERT INTO user_property ");
-		query.append("SELECT 0,'" + implementationId + "', t.* FROM "
-				+ database + ".user_property AS t ");
-		query.append("WHERE CONCAT(t.user_id, t.property) NOT IN (SELECT CONCAT(user_id, property) FROM user_role WHERE implementation_id="
-				+ implementationId + ")");
-		log.info("Inserting data from " + database
-				+ ".user_property into data warehouse");
-		localDb.runCommand(CommandType.INSERT, query.toString());
-		query = new StringBuilder();
-		query.append("INSERT INTO user_role ");
-		query.append("SELECT 0,'" + implementationId + "', t.* FROM "
-				+ database + ".user_role AS t ");
-		query.append("WHERE CONCAT(t.user_id, t.role) NOT IN (SELECT CONCAT(user_id, role) FROM user_role WHERE implementation_id="
-				+ implementationId + ")");
-		log.info("Inserting data from " + database
-				+ ".user_role into data warehouse");
-		localDb.runCommand(CommandType.INSERT, query.toString());
 	}
 
 	/**
@@ -179,32 +241,41 @@ public class ImportController {
 	 * @throws IllegalAccessException
 	 * @throws InstantiationException
 	 */
-	public void insertLocationData(DatabaseUtil remoteDb, int implementationId)
+	public void importLocationData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException,
 			ClassNotFoundException {
 		String database = remoteDb.getDbName();
-		String[] tables = { "location_attribute_type", "location",
-				"location_attribute", "location_tag" };
-		StringBuilder query = new StringBuilder();
-		for (String table : tables) {
-			query = new StringBuilder();
-			query.append("INSERT INTO " + table + " ");
-			query.append("SELECT 0,'" + implementationId + "', t.* FROM "
-					+ database + "." + table + " AS t ");
-			query.append("WHERE t.uuid NOT IN (SELECT uuid FROM " + table + ")");
-			log.info("Inserting data from " + database + "." + table
-					+ " into data warehouse");
-			localDb.runCommand(CommandType.INSERT, query.toString());
+		String insertQuery;
+		String selectQuery;
+		try {
+			// Location Attribute Type
+			insertQuery = "INSERT INTO location_attribute_type (surrogate_key, implementation_id, location_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".location_attribute_type AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".location_attribute_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Location
+			insertQuery = "INSERT INTO location (surrogate_key, implementation_id, location_id, name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, county_district, address3, address4, address5, address6, retired, retired_by, date_retired, retire_reason, parent_location, uuid, changed_by, date_changed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_id, name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, county_district, address3, address4, address5, address6, retired, retired_by, date_retired, retire_reason, parent_location, uuid, changed_by, date_changed FROM " + database + ".location AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".location into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Location Attribute
+			insertQuery = "INSERT INTO location_attribute (surrogate_key, implementation_id, location_attribute_id, location_id, attribute_type_id, value_reference, uuid, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_attribute_id, location_id, attribute_type_id, value_reference, uuid, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason FROM " + database + ".location_attribute AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".location_attribute into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Location Tag
+			insertQuery = "INSERT INTO location_tag (surrogate_key, implementation_id, location_tag_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, changed_by, date_changed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_tag_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, changed_by, date_changed FROM " + database + ".location_tag AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".location_tag into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Location Tag Map
+			insertQuery = "INSERT IGNORE INTO location_tag_map (surrogate_key, implementation_id, location_id, location_tag_id) VALUES (?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_id, location_tag_id FROM " + database + ".location_tag_map AS t ";
+			log.info("Inserting data from " + database + ".location_tag_map into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
-		query = new StringBuilder();
-		query.append("INSERT INTO location_tag_map ");
-		query.append("SELECT 0,'" + implementationId + "', t.* FROM "
-				+ database + ".location_tag_map AS t ");
-		query.append("WHERE CONCAT(t.location_id, t.location_tag_id) NOT IN (SELECT CONCAT(location_id, location_tag_id) FROM user_role WHERE implementation_id="
-				+ implementationId + ")");
-		log.info("Inserting data from " + database
-				+ ".location_tag_map into data warehouse");
-		localDb.runCommand(CommandType.INSERT, query.toString());
 	}
 
 	/**
@@ -216,35 +287,66 @@ public class ImportController {
 	 * @throws IllegalAccessException
 	 * @throws InstantiationException
 	 */
-	public void insertConceptData(DatabaseUtil remoteDb, int implementationId)
+	public void importConceptData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException,
 			ClassNotFoundException {
 		String database = remoteDb.getDbName();
-		String[] tables = { "concept_class", "concept_set", "concept_datatype",
-				"concept_map_type", "concept_stop_word", "concept",
-				"concept_name", "concept_description", "concept_answer",
-				"concept_reference_map", "concept_reference_term",
-				"concept_reference_term_map", "concept_reference_source" };
-		StringBuilder query = new StringBuilder();
-		for (String table : tables) {
-			query = new StringBuilder();
-			query.append("INSERT INTO " + table + " ");
-			query.append("SELECT 0,'" + implementationId + "', t.* FROM "
-					+ database + "." + table + " AS t ");
-			query.append("WHERE t.uuid NOT IN (SELECT uuid FROM " + table + ")");
-			log.info("Inserting data from " + database + "." + table
-					+ " into data warehouse");
-			localDb.runCommand(CommandType.INSERT, query.toString());
+		String insertQuery;
+		String selectQuery;
+		try {
+			// Concept Class
+			insertQuery = "INSERT INTO concept_class (surrogate_key, implementation_id, concept_class_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_class_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".concept_class AS t " + filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".concept_class into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Concept Set
+			insertQuery = "INSERT INTO concept_set (surrogate_key, implementation_id, concept_set_id, concept_id, concept_set, sort_weight, creator, date_created, uuid) VALUES (?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_set_id, concept_id, concept_set, sort_weight, creator, date_created, uuid FROM " + database + ".concept_set AS t " + filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".concept_set into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Concept Data Type
+			insertQuery = "INSERT INTO concept_datatype (surrogate_key, implementation_id, concept_datatype_id, name, hl7_abbreviation, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_datatype_id, name, hl7_abbreviation, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".concept_datatype AS t " + filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".concept_datatype into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Concept Map Type
+			insertQuery = "INSERT INTO concept_map_type (surrogate_key, implementation_id, concept_map_type_id, name, description, creator, date_created, changed_by, date_changed, is_hidden, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_map_type_id, name, description, creator, date_created, changed_by, date_changed, is_hidden, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".concept_map_type AS t " + filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".concept_map_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Concept Stop Word
+			insertQuery = "INSERT IGNORE INTO concept_stop_word (surrogate_key, implementation_id, concept_stop_word_id, word, locale, uuid) VALUES (?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_stop_word_id, word, locale, uuid FROM " + database + ".concept_stop_word AS t ";
+			log.info("Inserting data from " + database + ".concept_stop_word into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Concept
+			insertQuery = "INSERT INTO concept (surrogate_key, implementation_id, concept_id, retired, short_name, description, form_text, datatype_id, class_id, is_set, creator, date_created, version, changed_by, date_changed, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_id, retired, short_name, description, form_text, datatype_id, class_id, is_set, creator, date_created, version, changed_by, date_changed, retired_by, date_retired, retire_reason, uuid FROM " + database + ".concept AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".concept into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Concept Name
+			insertQuery = "INSERT INTO concept_name (surrogate_key, implementation_id, concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred FROM " + database + ".concept_name AS t " + filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".concept_name into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Concept Description
+			insertQuery = "INSERT INTO concept_description (surrogate_key, implementation_id, concept_description_id, concept_id, description, locale, creator, date_created, changed_by, date_changed, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_description_id, concept_id, description, locale, creator, date_created, changed_by, date_changed, uuid FROM " + database + ".concept_description AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + ".concept_description into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Concept Answer
+			insertQuery = "INSERT INTO concept_answer (surrogate_key, implementation_id, concept_answer_id, concept_id, answer_concept, answer_drug, creator, date_created, uuid, sort_weight) VALUES (?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_answer_id, concept_id, answer_concept, answer_drug, creator, date_created, uuid, sort_weight FROM " + database + ".concept_answer AS t " + filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".concept_answer into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Concept Numeric
+			insertQuery = "INSERT IGNORE INTO concept_numeric (surrogate_key, implementation_id, concept_id, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, units, precise, display_precision) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_id, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, units, precise, display_precision FROM " + database + ".concept_numeric AS t WHERE t.hi_absolute IS NOT NULL OR t.hi_critical IS NOT NULL OR t.hi_normal IS NOT NULL OR t.low_absolute IS NOT NULL OR t.low_critical IS NOT NULL OR t.low_normal IS NOT NULL OR t.units IS NOT NULL";
+			log.info("Inserting data from " + database + ".concept_numeric into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
-		query = new StringBuilder();
-		query.append("INSERT INTO concept_numeric ");
-		query.append("SELECT 0,'" + implementationId + "', t.* FROM "
-				+ database + ".concept_numeric AS t ");
-		query.append("WHERE t.concept_id NOT IN (SELECT concept_id FROM user_role WHERE implementation_id="
-				+ implementationId + ")");
-		log.info("Inserting data from " + database
-				+ ".concept_numeric into data warehouse");
-		localDb.runCommand(CommandType.INSERT, query.toString());
 	}
 
 	/**
@@ -582,14 +684,21 @@ public class ImportController {
 
 	/**
 	 * Insert data from all sources into data warehouse
+	 * 
+	 * @throws SQLException
+	 * @throws ClassNotFoundException
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
+	 * @throws ParseException 
 	 */
-	public void importData(boolean insertOnly) {
+	public void importData(boolean insertOnly) throws InstantiationException,
+			IllegalAccessException, ClassNotFoundException, SQLException, ParseException {
 		// Fetch source databases from _implementation table
 		Object[][] sources = localDb
 				.getTableData(
 						"_implementation",
-						"implementation_id,connection_url,driver,db_name,username,password",
-						"active=1");
+						"implementation_id,connection_url,driver,db_name,username,password,last_updated",
+						"active=1 AND status<>'RUNNING'");
 		// For each source, generate CSV files of all data
 		for (Object[] source : sources) {
 			int implementationId = Integer.parseInt(source[0].toString());
@@ -598,18 +707,23 @@ public class ImportController {
 			String dbName = source[3].toString();
 			String userName = source[4].toString();
 			String password = source[5].toString();
-			remoteDb.setConnection(url, dbName, driverName, userName, password);
-			if (!remoteDb.tryConnection()) {
-				log.warning("Connection with remote database with implementation ID "
-						+ source[0] + " failed.");
+			if (source[6] == null) {
+				source[6] = new String("2000-01-01 00:00:00");
 			}
+			String lastUpdated = source[6].toString();
+			fromDate = DateTimeUtil.getDateFromString(lastUpdated, DateTimeUtil.SQL_DATETIME);
+			remoteDb = new DatabaseUtil();
+			remoteDb.setConnection(url, dbName, driverName, userName, password);
+			remoteDb.getConnection();
 			// Import data from this connection into data warehouse
 			try {
-				insertPeopleData(remoteDb, implementationId);
-				insertUserData(remoteDb, implementationId);
-				insertLocationData(remoteDb, implementationId);
-				insertConceptData(remoteDb, implementationId);
-				insertPatientData(remoteDb, implementationId);
+				// Update status of implementation record
+// TODO: Enable on production				localDb.updateRecord("_implementation", new String[] {"status"}, new String[] {"RUNNING"}, "implementation_id='" + implementationId + "'");
+//				importPeopleData(remoteDb, implementationId);
+//				importUserData(remoteDb, implementationId);
+//				importLocationData(remoteDb, implementationId);
+				importConceptData(remoteDb, implementationId);
+/*				insertPatientData(remoteDb, implementationId);
 				insertEncounterData(remoteDb, implementationId);
 				if (!insertOnly) {
 					updatePeopleData(remoteDb, implementationId);
@@ -618,9 +732,13 @@ public class ImportController {
 					updateConceptData(remoteDb, implementationId);
 					updatePatientData(remoteDb, implementationId);
 					updateEncounterData(remoteDb, implementationId);
-				}
+				}				
+*/				// Update the status in _implementation table
+				localDb.updateRecord("_implementation", new String[] {"last_updated"}, new String[] {DateTimeUtil.getSqlDateTime(new Date())}, "implementation_id='" + implementationId + "'");
 			} catch (Exception e) {
 				e.printStackTrace();
+			} finally {
+				localDb.updateRecord("_implementation", new String[] {"status"}, new String[] {"STOPPED"}, "implementation_id='" + implementationId + "'");
 			}
 		}
 	}
@@ -775,7 +893,7 @@ public class ImportController {
 			insertQuery = "INSERT INTO openmrs.visit_type(visit_type_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT visit_type.visit_type_id,visit_type.name,visit_type.description,visit_type.creator,visit_type.date_created,visit_type.changed_by,visit_type.date_changed,visit_type.retired,visit_type.retired_by,visit_type.date_retired,visit_type.retire_reason,visit_type.uuid FROM openmrs.visit_type";
 			remoteSelectInsert(selectQuery, insertQuery);
-		} catch (SQLException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}

@@ -555,14 +555,14 @@ public class ImportController {
 			tableName = "obs";
 			int from = 1, to = 0;
 			int batchSize = 500;
-			int rows = (int)remoteDb.getTotalRows(tableName);
+			int rows = (int)remoteDb.getTotalRows(tableName, filter("t.date_created", null));
 			log.info("Inserting data from " + database + ".obs into data warehouse");
 			while (from <= rows) {
 				to = from > rows ? rows : from + batchSize;
-				String limit = "LIMIT " + from + ", " + to;
+				String limitClause = "LIMIT " + from + ", " + to;
 				from += batchSize;
 				insertQuery = "INSERT INTO obs (surrogate_key, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_boolean, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-				selectQuery = "SELECT 0,'" + implementationId + "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_boolean, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM " + database + ".obs AS t " + filter("t.date_created", null) + limit + " ";
+				selectQuery = "SELECT 0,'" + implementationId + "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_boolean, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM " + database + ".obs AS t " + filter("t.date_created", null) + limitClause + " ";
 				remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
 			}
 			// TODO: Handle tables visit_type, visit, visit_attribute_type, visit_attribute, form, field, form_field, field_type

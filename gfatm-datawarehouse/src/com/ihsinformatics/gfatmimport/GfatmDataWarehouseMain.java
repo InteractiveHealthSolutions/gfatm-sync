@@ -76,8 +76,6 @@ public class GfatmDataWarehouseMain {
 				propertiesFile = args[i + 1];
 			} else if (args[i].equalsIgnoreCase("-r")) {
 				doReset = doCreateDw = true;
-			} else if (args[i].equalsIgnoreCase("-d")) {
-				doCreateDw = true;
 			} else if (args[i].equalsIgnoreCase("-u")) {
 				doUpdateDw = true;
 			}
@@ -93,11 +91,8 @@ public class GfatmDataWarehouseMain {
 		try {
 			if (doReset) {
 				gfatm.createDatawarehouse();
-				importController.importData(true);
 			}
-			if (doUpdateDw) {
-				importController.importData(false);
-			}
+			importController.importData();
 			if (doCreateDw) {
 				DimensionController dimController = new DimensionController(
 						gfatm.localDb);

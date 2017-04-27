@@ -11,14 +11,18 @@ Interactive Health Solutions, hereby disclaims all copyright interest in this pr
  */
 package com.ihsinformatics.gfatmimport;
 
+import java.sql.SQLException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.logging.Logger;
 
+import com.ihsinformatics.util.CollectionsUtil;
 import com.ihsinformatics.util.CommandType;
 import com.ihsinformatics.util.DatabaseUtil;
 import com.ihsinformatics.util.DateTimeUtil;
+import com.ihsinformatics.util.StringUtil;
 
 /**
  * @author owais.hussain@ihsinformatics.com
@@ -29,8 +33,56 @@ public class DimensionController {
 	private static final Logger log = Logger.getLogger(Class.class.getName());
 	private DatabaseUtil db;
 
+	public static void main(String[] args) {
+		DatabaseUtil myDb = new DatabaseUtil();
+		myDb.setConnection("jdbc:mysql://127.0.0.1:3306/gfatm_dw?autoReconnect=true&useSSL=false", "gfatm_dw", "com.mysql.jdbc.Driver", "root", "jingle94");
+		myDb.tryConnection();
+		DimensionController dc = new DimensionController(myDb);
+		dc.modelDimensions();
+	}
+	
 	public DimensionController(DatabaseUtil db) {
 		this.db = db;
+	}
+
+	/**
+	 * Perform dimension modeling
+	 */
+	public void modelDimensions() {
+		Calendar from = Calendar.getInstance();
+		from.set(2000, 0, 1);
+		Calendar to = Calendar.getInstance();
+		Object[][] sources = db.getTableData("_implementation", "implementation_id", 
+				"active=1 AND status='STOPPED' " 
+		// TODO: Enable on production + "AND date(last_updated) = current_date()"
+				);
+		// For each source, import all data
+		// TODO: Restrict by date
+		for (Object[] source : sources) {
+			int implementationId = Integer.parseInt(source[0].toString());
+			modelDimensions(from.getTime(), to.getTime(), implementationId);
+		}
+	}
+	
+	public void modelDimensions(Date from, Date to, int implementationId) {
+		try {
+			log.info("Starting dimension modeling");
+			timeDimension();
+			//conceptDimension(from, to, implementationId);
+			locationDimension(from, to, implementationId);
+			userDimension(from, to, implementationId);
+			patientDimension(from, to, implementationId);
+			encounterAndObsDimension(from, to, implementationId);
+			log.info("Finished dimension modeling");
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -51,12 +103,15 @@ public class DimensionController {
 		start.set(Calendar.DATE, 1);
 		if (lastSqlDate != null) {
 			Date latestDate = DateTimeUtil.getDateFromString(
-					lastSqlDate.toString(), DateTimeUtil.SQL_DATETIME);
+					lastSqlDate.toString(), DateTimeUtil.SQL_DATE);
 			start.setTime(latestDate);
 		}
 		start.add(Calendar.DATE, 1);
 		Calendar end = Calendar.getInstance();
 		end.set(Calendar.HOUR, 0);
+		if (!start.getTime().before(end.getTime())) {
+			return;
+		}
 		StringBuilder query = new StringBuilder(
 				"insert into dim_datetime values ");
 		while (start.getTime().before(end.getTime())) {
@@ -81,16 +136,23 @@ public class DimensionController {
 	 * @throws IllegalAccessException
 	 * @throws ClassNotFoundException
 	 */
-	public void conceptDimension() throws InstantiationException,
+	public void conceptDimension(Date from, Date to, int implementationId) throws InstantiationException,
 			IllegalAccessException, ClassNotFoundException {
+		// First, remove existing concepts for this implementation
+		String deleteQuery = "delete from dim_concept where implementation_id = " + implementationId;
+		log.info("Deleting existing concepts.");
+		db.runCommand(CommandType.DELETE, deleteQuery);
 		StringBuilder query = new StringBuilder();
-		query.append("insert ignore into dim_concept (surrogate_key, implementation_id, concept_id, full_name, concept, description, retired, data_type, class, creator, date_created, version, changed_by, date_changed, uuid) ");
-		query.append("select c.surrogate_key, c.implementation_id, c.concept_id, n1.name as full_name, n2.name as concept, d.description, c.retired, dt.name as data_type, cl.name as class, c.creator, c.date_created, c.version, c.changed_by, c.date_changed, c.uuid from concept as c ");
+		query.append("insert ignore into dim_concept (surrogate_key, implementation_id, concept_id, full_name, concept, description, retired, data_type, class, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, creator, date_created, version, changed_by, date_changed, uuid) ");
+		query.append("select c.surrogate_key, c.implementation_id, c.concept_id, n1.name as full_name, n2.name as concept, d.description, c.retired, dt.name as data_type, cl.name as class, cn.hi_absolute, cn.hi_critical, cn.hi_normal, cn.low_absolute, cn.low_critical, cn.low_normal, c.creator, c.date_created, c.version, c.changed_by, c.date_changed, c.uuid from concept as c ");
 		query.append("left outer join concept_datatype as dt on dt.implementation_id = c.implementation_id and dt.concept_datatype_id = c.datatype_id ");
 		query.append("left outer join concept_class as cl on cl.implementation_id = c.implementation_id and cl.concept_class_id = c.class_id ");
 		query.append("left outer join concept_name as n1 on n1.implementation_id = c.implementation_id and n1.concept_id = c.concept_id and n1.locale = 'en' and n1.voided = 0 and n1.concept_name_type = 'FULLY_SPECIFIED' ");
 		query.append("left outer join concept_name as n2 on n2.implementation_id = c.implementation_id and n2.concept_id = c.concept_id and n2.locale = 'en' and n2.voided = 0 and n2.concept_name_type <> 'FULLY_SPECIFIED' ");
-		query.append("left outer join concept_description as d on d.implementation_id = c.implementation_id and d.concept_id = c.concept_id and d.locale = 'en'");
+		query.append("left outer join concept_description as d on d.implementation_id = c.implementation_id and d.concept_id = c.concept_id and d.locale = 'en' ");
+		query.append("left outer join concept_numeric as cn on cn.implementation_id = c.implementation_id and cn.concept_id = c.concept_id ");
+		query.append("where c.implementation_id = '" + implementationId + "' ");
+		query.append("and c.surrogate_key not in (select surrogate_key from dim_concept where implementation_id = c.implementation_id)");
 		log.info("Inserting new concepts to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
 		query = new StringBuilder(
@@ -108,12 +170,67 @@ public class DimensionController {
 	 * @throws InstantiationException
 	 * @throws IllegalAccessException
 	 * @throws ClassNotFoundException
+	 * @throws SQLException 
 	 */
-	public void locationDimension() throws InstantiationException,
+	public void locationDimension(Date from, Date to, int implementationId) throws InstantiationException,
 			IllegalAccessException, ClassNotFoundException {
-		StringBuilder query = new StringBuilder(
-				"insert ignore into dim_location (surrogate_key, implementation_id, location_id, location_name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, retired, parent_location, uuid) ");
-		query.append("select l.surrogate_key, l.implementation_id, l.location_id, l.name as location_name, l.description, l.address1, l.address2, l.city_village, l.state_province, l.postal_code, l.country, l.latitude, l.longitude, l.creator, l.date_created, l.retired, l.parent_location, l.uuid from location as l ");
+		StringBuilder query = new StringBuilder("delete from dim_location where implementation_id = " + implementationId);
+		log.info("Deleting existing locations.");
+		db.runCommand(CommandType.DELETE, query.toString());
+		query = new StringBuilder(
+				"update location_attribute set value_reference = 'Yes' where value_reference = 'true'");
+		db.runCommand(CommandType.UPDATE, query.toString());
+		query = new StringBuilder(
+				"update location_attribute set value_reference = 'No' where value_reference = 'false'");
+		db.runCommand(CommandType.UPDATE, query.toString());
+		log.info("Transforming location attributes.");
+		db.runCommand(CommandType.DROP,
+				"drop table if exists location_attribute_merged");
+		Object[][] attributeTypes = db.getTableData("location_attribute_type", "location_attribute_type_id,name", null, true);
+		StringBuilder groupConcat = new StringBuilder();
+		for (Object[] type : attributeTypes) {
+			String typeId = type[0].toString();
+			String typeName = type[1].toString().replace(" ", "_")
+					.replace("'", "").replace("(\\W|^_)*", "_").toLowerCase();
+			groupConcat.append("group_concat(if(a.attribute_type_id = "
+					+ typeId + ", a.value_reference, null)) as " + typeName + ", ");
+		}
+		groupConcat.append("'' as BLANK ");
+		query = new StringBuilder("create table location_attribute_merged ");
+		query.append("select a.implementation_id, a.location_id, ");
+		query.append(groupConcat.toString());
+		query.append("from location_attribute as a ");
+		query.append("where a.voided = 0 and a.implementation_id = '" + implementationId + "' ");
+		query.append("group by a.location_id");
+		db.runCommand(CommandType.CREATE, query.toString());
+		db.runCommand(CommandType.ALTER, "alter table location_attribute_merged add primary key (implementation_id, location_id)");
+		/* Dear reader! Kindly don't judge my coding skills based on the lines below. I'm not proud of this mess :-| */
+		String[] columnList;
+		StringBuilder columns = new StringBuilder();
+		String aliasPrefix = "lam";
+		try {
+			// Fetch list of columns in newly created table
+			columnList = db.getColumnNames("location_attribute_merged");
+			ArrayList<String> dimColumns = CollectionsUtil.toArrayList(db.getColumnNames("dim_location"));
+			for (int i = 2; i < columnList.length - 1; i++) { // Skipping undesired columns
+				columns.append(aliasPrefix + ".");
+				columns.append(columnList[i] +  ",");
+				// Additionally, hunt for missing columns in dim_location and create any missing ones
+				if (!dimColumns.contains(columnList[i])) {
+					log.info("Creating missing column " + columnList[i] + " in dim_location.");
+					db.addColumn("dim_location", columnList[i], "VARCHAR(255)");
+				}
+			}
+			columns.deleteCharAt(columns.lastIndexOf(","));
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		query = new StringBuilder(
+				"insert ignore into dim_location (surrogate_key, implementation_id, location_id, location_name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, retired, parent_location, uuid, " + columns.toString().replace(aliasPrefix + ".", "") + ") ");
+		query.append("select l.surrogate_key, l.implementation_id, l.location_id, l.name as location_name, l.description, l.address1, l.address2, l.city_village, l.state_province, l.postal_code, l.country, l.latitude, l.longitude, l.creator, l.date_created, l.retired, l.parent_location, l.uuid, " + columns + " from location as l ");
+		query.append("left outer join location_attribute_merged as lam using (implementation_id, location_id) ");
+		query.append("where l.implementation_id = '" + implementationId + "' ");
+		query.append("and l.surrogate_key not in (select surrogate_key from dim_location where implementation_id = l.implementation_id)");
 		log.info("Inserting new locations to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
 	}
@@ -125,7 +242,7 @@ public class DimensionController {
 	 * @throws IllegalAccessException
 	 * @throws ClassNotFoundException
 	 */
-	public void userDimension() throws InstantiationException,
+	public void userDimension(Date from, Date to, int implementationId) throws InstantiationException,
 			IllegalAccessException, ClassNotFoundException {
 		StringBuilder query = new StringBuilder(
 				"insert ignore into dim_user (surrogate_key, implementation_id, user_id, username, person_id, identifier, secret_question, secret_answer, creator, date_created, changed_by, date_changed, retired, retire_reason, uuid) ");
@@ -142,7 +259,7 @@ public class DimensionController {
 	 * @throws IllegalAccessException
 	 * @throws ClassNotFoundException
 	 */
-	public void patientDimension() throws InstantiationException,
+	public void patientDimension(Date from, Date to, int implementationId) throws InstantiationException,
 			IllegalAccessException, ClassNotFoundException {
 		// Collect latest patient identifiers
 		log.info("Setting preferred identifiers to OpenMRS ID (with check digit).");
@@ -236,7 +353,7 @@ public class DimensionController {
 	 * @throws IllegalAccessException
 	 * @throws ClassNotFoundException
 	 */
-	public void encounterAndObsDimension() throws InstantiationException,
+	public void encounterAndObsDimension(Date from, Date to, int implementationId) throws InstantiationException,
 			IllegalAccessException, ClassNotFoundException {
 		// Fill the encounter dimension data
 		StringBuilder query = new StringBuilder(
@@ -259,29 +376,5 @@ public class DimensionController {
 		query.append("where o.voided = 0");
 		log.info("Inserting new observations to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
-	}
-
-	/**
-	 * Perform dimension modeling
-	 */
-	public void modelDimensions() {
-		try {
-			log.info("Starting dimension modeling");
-			timeDimension();
-			conceptDimension();
-			locationDimension();
-			userDimension();
-			patientDimension();
-			encounterAndObsDimension();
-			log.info("Finished dimension modeling");
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
 	}
 }

@@ -15,12 +15,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-import com.ihsinformatics.util.CommandType;
 import com.ihsinformatics.util.DatabaseUtil;
-import com.ihsinformatics.util.FileUtil;
 import com.ihsinformatics.util.VersionUtil;
 
 /**
@@ -31,6 +30,7 @@ public class GfatmDataWarehouseMain {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
 	private static final String createWarehouseFile = "res/create_datawarehouse.sql";
+	private static final String destroyWarehouseFile = "res/destroy_datawarehouse.sql";
 	private static final VersionUtil version = new VersionUtil(true, false,
 			false, 0, 1, 1);
 	private static String propertiesFile = "res/gfatm-sync.properties";
@@ -90,8 +90,9 @@ public class GfatmDataWarehouseMain {
 		ImportController importController = new ImportController(gfatm.localDb);
 		try {
 			if (doReset) {
-				gfatm.createDatawarehouse();
+				gfatm.destroyDatawarehouse();
 			}
+			gfatm.createDatawarehouse();
 			importController.importData();
 			if (doCreateDw) {
 				DimensionController dimController = new DimensionController(
@@ -139,18 +140,26 @@ public class GfatmDataWarehouseMain {
 	}
 
 	/**
-	 * Create all dimension and fact tables from SQL script (line-by-line
-	 * execution)
+	 * Delete all data warehouse tables
+	 */
+	public void destroyDatawarehouse() {
+		try {
+			SqlExecuteUtil sqlUtil = new SqlExecuteUtil(localDb.getUrl(), localDb.getDriverName(), localDb.getUsername(), localDb.getPassword());
+			sqlUtil.execute(destroyWarehouseFile);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Create all tables from SQL script
 	 */
 	public void createDatawarehouse() {
-		FileUtil fileUtil = new FileUtil();
-		String[] queries = fileUtil.getLines(createWarehouseFile);
-		for (String query : queries) {
-			try {
-				localDb.runCommand(CommandType.CREATE, query);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+		try {
+			SqlExecuteUtil sqlUtil = new SqlExecuteUtil(localDb.getUrl(), localDb.getDriverName(), localDb.getUsername(), localDb.getPassword());
+			sqlUtil.execute(createWarehouseFile);
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
 	}
 }

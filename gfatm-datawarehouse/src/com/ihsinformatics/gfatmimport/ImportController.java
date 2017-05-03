@@ -20,6 +20,8 @@ import java.text.ParseException;
 import java.util.Date;
 import java.util.logging.Logger;
 
+import javax.swing.text.TabExpander;
+
 import com.ihsinformatics.util.CommandType;
 import com.ihsinformatics.util.DatabaseUtil;
 import com.ihsinformatics.util.DateTimeUtil;
@@ -78,14 +80,14 @@ public class ImportController {
 			// Import data from this connection into data warehouse
 			try {
 				// Update status of implementation record
-// TODO: Enable on production				localDb.updateRecord("_implementation", new String[] {"status"}, new String[] {"RUNNING"}, "implementation_id='" + implementationId + "'");
-				clearTempTables(implementationId);
-//				importPeopleData(remoteDb, implementationId);
-				importUserData(remoteDb, implementationId);
-				importLocationData(remoteDb, implementationId);
-				importConceptData(remoteDb, implementationId);
-				importPatientData(remoteDb, implementationId);
-				importEncounterData(remoteDb, implementationId);
+				// TODO: Enable on production				localDb.updateRecord("_implementation", new String[] {"status"}, new String[] {"RUNNING"}, "implementation_id='" + implementationId + "'");
+				 clearTempTables(implementationId);
+				 importPeopleData(remoteDb, implementationId);
+				 importUserData(remoteDb, implementationId);
+				 importLocationData(remoteDb, implementationId);
+				 importConceptData(remoteDb, implementationId);
+				 importPatientData(remoteDb, implementationId);
+				 importEncounterData(remoteDb, implementationId);
 				// Update the status in _implementation table
 				localDb.updateRecord("_implementation", new String[] {"last_updated"}, new String[] {DateTimeUtil.getSqlDateTime(new Date())}, "implementation_id='" + implementationId + "'");
 			} catch (Exception e) {
@@ -205,6 +207,7 @@ public class ImportController {
 		String tableName;
 		try {
 			tableName = "person";
+			//insert into temp_person table...
 			insertQuery = "INSERT INTO tmp_" + tableName + " (surrogate_key, implementation_id, person_id, gender, birthdate, birthdate_estimated, dead, death_date, cause_of_death, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId + "', person_id, gender, birthdate, birthdate_estimated, dead, death_date, cause_of_death, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid FROM " + database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
@@ -217,10 +220,12 @@ public class ImportController {
 			localDb.runCommand(CommandType.UPDATE, updateQuery);
 
 			tableName = "person_attribute_type";
+			//Insert into temp_person_Attribute_type
 			insertQuery = "INSERT INTO tmp_" + tableName + " (surrogate_key, implementation_id, person_attribute_type_id, name, description, format, foreign_key, searchable, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, edit_privilege, sort_weight, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId + "', person_attribute_type_id, name, description, format, foreign_key, searchable, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, edit_privilege, sort_weight, uuid FROM " + database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//Insert into person_attribute_type
 			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			localDb.runCommand(CommandType.INSERT, insertQuery);
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.name = t.name, a.description = t.description, a.format = t.format, a.foreign_key = t.foreign_key, a.searchable = t.searchable, a.creator = t.creator, a.date_created = t.date_created, a.changed_by = t.changed_by, a.date_changed = t.date_changed, a.retired = t.retired, a.retired_by = t.retired_by, a.date_retired = t.date_retired, a.retire_reason = t.retire_reason, a.edit_privilege = t.edit_privilege, a.sort_weight = t.sort_weight WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
@@ -395,42 +400,78 @@ public class ImportController {
 	public void importLocationData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException,
 			ClassNotFoundException {
+		
 		String database = remoteDb.getDbName();
 		String insertQuery;
 		String updateQuery;
 		String selectQuery;
 		String tableName;
+		
 		try {
-			// Location Attribute Type
-			insertQuery = "INSERT INTO location_attribute_type (surrogate_key, implementation_id, location_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', location_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".location_attribute_type AS t " + filter("t.date_created", "t.date_changed");
+			tableName="location_attribute_type";
+			insertQuery = "INSERT INTO tmp_"+tableName+"(surrogate_key, implementation_id, location_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + "."+ tableName +"  AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".location_attribute_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a. location_attribute_type_id=t. location_attribute_type_id,a. name=t. name,a. description=t. description,a. datatype=t. datatype,a. datatype_config=t. datatype_config,a. preferred_handler=t. preferred_handler,a. handler_config=t. handler_config,a. min_occurs=t. min_occurs,a. max_occurs=t. max_occurs,a. creator=t. creator,a. date_created=t. date_created,a. changed_by=t. changed_by,a. date_changed=t. date_changed,a. retired=t. retired,a. retired_by=t. retired_by,a. date_retired=t. date_retired,a. retire_reason=t. retire_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
 			// Location
-			insertQuery = "INSERT INTO location (surrogate_key, implementation_id, location_id, name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, county_district, address3, address4, address5, address6, retired, retired_by, date_retired, retire_reason, parent_location, uuid, changed_by, date_changed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', location_id, name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, county_district, address3, address4, address5, address6, retired, retired_by, date_retired, retire_reason, parent_location, uuid, changed_by, date_changed FROM " + database + ".location AS t " + filter("t.date_created", "t.date_changed");
+			tableName= "location";
+			insertQuery = "INSERT INTO tmp_"+tableName+"(surrogate_key, implementation_id, location_id, name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, county_district, address3, address4, address5, address6, retired, retired_by, date_retired, retire_reason, parent_location, uuid, changed_by, date_changed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_id, name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, county_district, address3, address4, address5, address6, retired, retired_by, date_retired, retire_reason, parent_location, uuid, changed_by, date_changed FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".location into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into wareHouse database from tmp_table
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the actual database from temp table 
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a. location_id=t. location_id,a. name=t. name,a. description=t. description,a. address1=t. address1,a. address2=t. address2,a. city_village=t. city_village,a. state_province=t. state_province,a. postal_code=t. postal_code,a. country=t. country,a. latitude=t. latitude,a. longitude=t. longitude,a. creator=t. creator,a. date_created=t. date_created,a. county_district=t. county_district,a. address3=t. address3,a. address4=t. address4,a. address5=t. address5,a. address6=t. address6,a. retired=t. retired,a. retired_by=t. retired_by,a. date_retired=t. date_retired,a. retire_reason=t. retire_reason,a. parent_location=t. parent_location,a. uuid=t. uuid,a. changed_by=t. changed_by,a. date_changed=t. date_changed WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Location Attribute
-			insertQuery = "INSERT INTO location_attribute (surrogate_key, implementation_id, location_attribute_id, location_id, attribute_type_id, value_reference, uuid, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', location_attribute_id, location_id, attribute_type_id, value_reference, uuid, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason FROM " + database + ".location_attribute AS t " + filter("t.date_created", "t.date_changed");
+			tableName = "location_attribute";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, location_attribute_id, location_id, attribute_type_id, value_reference, uuid, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_attribute_id, location_id, attribute_type_id, value_reference, uuid, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".location_attribute into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into wareHouse database from tmp_table
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.location_attribute_id=t.location_attribute_id,a. location_id=t. location_id,a. attribute_type_id=t. attribute_type_id,a. value_reference=t. value_reference,a. uuid=t. uuid,a. creator=t. creator,a. date_created=t. date_created,a. changed_by=t. changed_by,a. date_changed=t. date_changed,a. voided=t. voided,a. voided_by=t. voided_by,a. date_voided=t. date_voided,a. void_reason=t. void_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			
 			// Location Tag
-			insertQuery = "INSERT INTO location_tag (surrogate_key, implementation_id, location_tag_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, changed_by, date_changed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', location_tag_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, changed_by, date_changed FROM " + database + ".location_tag AS t " + filter("t.date_created", "t.date_changed");
+			tableName = "location_tag";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, location_tag_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, changed_by, date_changed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_tag_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, changed_by, date_changed FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".location_tag into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into wareHouse database from tmp_table
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.location_tag_id=t.location_tag_id,a.name=t.name,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason,a.uuid=t.uuid,a.changed_by=t.changed_by,a.date_changed= t.date_changed WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Location Tag Map
-			insertQuery = "INSERT IGNORE INTO location_tag_map (surrogate_key, implementation_id, location_id, location_tag_id) VALUES (?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', location_id, location_tag_id FROM " + database + ".location_tag_map AS t ";
+			tableName ="location_tag_map";
+			insertQuery = "INSERT IGNORE INTO tmp_"+ tableName +" (surrogate_key, implementation_id, location_id, location_tag_id) VALUES (?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', location_id, location_tag_id FROM " + database + "."+ tableName +" AS t ";
 			log.info("Inserting data from " + database + ".location_tag_map into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into wareHouse database from tmp_table
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.location_id = t.location_id, a.location_tag_id = t.location_tag_id WHERE a.implementation_id = t.implementation_id = '" + implementationId + "'";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 	}
-
+ 
 	/**
 	 * Load data from concept-related tables into data warehouse
 	 * 
@@ -451,52 +492,125 @@ public class ImportController {
 		try {
 			// Concept Class
 			tableName = "concept_class";
-			insertQuery = "INSERT INTO " + tableName + " (surrogate_key, implementation_id, concept_class_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', concept_class_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + "." + tableName + " AS t " + filter("t.date_created", null);
+			insertQuery = "INSERT INTO  tmp_" + tableName + " (surrogate_key, implementation_id, concept_class_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_class_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + "." + tableName + " AS t "+ filter("t.date_created", null);
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the warehouse database from tmp table...
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.concept_class_id=t.concept_class_id,a.name=t.name,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Concept Set
 			tableName = "concept_set";
-			insertQuery = "INSERT INTO " + tableName + " (surrogate_key, implementation_id, concept_set_id, concept_id, concept_set, sort_weight, creator, date_created, uuid) VALUES (?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', concept_set_id, concept_id, concept_set, sort_weight, creator, date_created, uuid FROM " + database + "." + tableName + " AS t " + filter("t.date_created", null);
+			insertQuery = "INSERT INTO tmp_" + tableName + " (surrogate_key, implementation_id, concept_set_id, concept_id, concept_set, sort_weight, creator, date_created, uuid) VALUES (?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_set_id, concept_id, concept_set, sort_weight, creator, date_created, uuid FROM " + database + "." + tableName + " AS t "+ filter("t.date_created", null);
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into warehouse database from tmp_table...
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the warehouse database from tmp table...
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.concept_set_id=t.concept_set_id,a.concept_id=t.concept_id,a.concept_set=t.concept_set,a.sort_weight=t.sort_weight,a.creator=t.creator,a.date_created=t.date_created WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			
 			// Concept Data Type
 			tableName = "concept_datatype";
-			insertQuery = "INSERT INTO " + tableName + " (surrogate_key, implementation_id, concept_datatype_id, name, hl7_abbreviation, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', concept_datatype_id, name, hl7_abbreviation, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + "." + tableName + " AS t " + filter("t.date_created", null);
+			insertQuery = "INSERT INTO tmp_" + tableName + " (surrogate_key, implementation_id, concept_datatype_id, name, hl7_abbreviation, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_datatype_id, name, hl7_abbreviation, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + "." + tableName + " AS t "+ filter("t.date_created", null);
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into warehouse database from tmp_table...
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the warehouse database from tmp table...
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.concept_datatype_id=t.concept_datatype_id,a.name=t.name,a.hl7_abbreviation=t.hl7_abbreviation,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Concept Map Type
-			insertQuery = "INSERT INTO concept_map_type (surrogate_key, implementation_id, concept_map_type_id, name, description, creator, date_created, changed_by, date_changed, is_hidden, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', concept_map_type_id, name, description, creator, date_created, changed_by, date_changed, is_hidden, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".concept_map_type AS t " + filter("t.date_created", null);
+			tableName= "concept_map_type";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, concept_map_type_id, name, description, creator, date_created, changed_by, date_changed, is_hidden, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_map_type_id, name, description, creator, date_created, changed_by, date_changed, is_hidden, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".concept_map_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into warehouse database from tmp_table...
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the warehouse database from tmp table...
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.concept_map_type_id=t.concept_map_type_id,a.name=t.name,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.is_hidden=t.is_hidden,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			
 			// Concept
-			insertQuery = "INSERT INTO concept (surrogate_key, implementation_id, concept_id, retired, short_name, description, form_text, datatype_id, class_id, is_set, creator, date_created, version, changed_by, date_changed, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', concept_id, retired, short_name, description, form_text, datatype_id, class_id, is_set, creator, date_created, version, changed_by, date_changed, retired_by, date_retired, retire_reason, uuid FROM " + database + ".concept AS t " + filter("t.date_created", "t.date_changed");
+			tableName = "concept";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, concept_id, retired, short_name, description, form_text, datatype_id, class_id, is_set, creator, date_created, version, changed_by, date_changed, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_id, retired, short_name, description, form_text, datatype_id, class_id, is_set, creator, date_created, version, changed_by, date_changed, retired_by, date_retired, retire_reason, uuid FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".concept into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into warehouse database from tmp_table...
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the warehouse database from tmp table...
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.concept_id=t.concept_id,a.retired=t.retired,a.short_name=t.short_name,a.description=t.description,a.form_text=t.form_text,a.datatype_id=t.datatype_id,a.class_id=t.class_id,a.is_set=t.is_set,a.creator=t.creator,a.date_created=t.date_created,a.version=t.version,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			
 			// Concept Name
-			insertQuery = "INSERT INTO concept_name (surrogate_key, implementation_id, concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred FROM " + database + ".concept_name AS t " + filter("t.date_created", null);
+			tableName="concept_name";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".concept_name into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into warehouse database from tmp_table...
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the warehouse database from tmp table...
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.concept_id=t.concept_id,a.name=t.name,a.locale=t.locale,a.creator=t.creator,a.date_created=t.date_created,a.concept_name_id=t.concept_name_id,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.concept_name_type=t.concept_name_type,a.locale_preferred=t.locale_preferred WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			
 			// Concept Description
-			insertQuery = "INSERT INTO concept_description (surrogate_key, implementation_id, concept_description_id, concept_id, description, locale, creator, date_created, changed_by, date_changed, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', concept_description_id, concept_id, description, locale, creator, date_created, changed_by, date_changed, uuid FROM " + database + ".concept_description AS t " + filter("t.date_created", "t.date_changed");
+			tableName="concept_description";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, concept_description_id, concept_id, description, locale, creator, date_created, changed_by, date_changed, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_description_id, concept_id, description, locale, creator, date_created, changed_by, date_changed, uuid FROM " + database + "."+ tableName +" AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".concept_description into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into warehouse database from tmp_table...
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the warehouse database from tmp table...
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.concept_description_id=t.concept_description_id,a.concept_id=t.concept_id,a.description=t.description,a.locale=t.locale,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			
 			// Concept Answer
-			insertQuery = "INSERT INTO concept_answer (surrogate_key, implementation_id, concept_answer_id, concept_id, answer_concept, answer_drug, creator, date_created, uuid, sort_weight) VALUES (?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', concept_answer_id, concept_id, answer_concept, answer_drug, creator, date_created, uuid, sort_weight FROM " + database + ".concept_answer AS t " + filter("t.date_created", null);
+			tableName="concept_answer";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, concept_answer_id, concept_id, answer_concept, answer_drug, creator, date_created, uuid, sort_weight) VALUES (?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_answer_id, concept_id, answer_concept, answer_drug, creator, date_created, uuid, sort_weight FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".concept_answer into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into warehouse database from tmp_table...
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the warehouse database from tmp table...
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.concept_answer_id=t.concept_answer_id,a.concept_id=t.concept_id,a.answer_concept=t.answer_concept,a.answer_drug=t.answer_drug,a.creator=t.creator,a.date_created=t.date_created,a.sort_weight=t.sort_weight WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Concept Numeric
-			insertQuery = "INSERT INTO concept_numeric (surrogate_key, implementation_id, concept_id, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, units, precise, display_precision) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', concept_id, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, units, precise, display_precision FROM " + database + ".concept_numeric AS t WHERE t.hi_absolute IS NOT NULL OR t.hi_critical IS NOT NULL OR t.hi_normal IS NOT NULL OR t.low_absolute IS NOT NULL OR t.low_critical IS NOT NULL OR t.low_normal IS NOT NULL OR t.units IS NOT NULL";
+			tableName="concept_numeric";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, concept_id, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, units, precise, display_precision) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', concept_id, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, units, precise, display_precision FROM " + database + "."+ tableName +" AS t WHERE t.hi_absolute IS NOT NULL OR t.hi_critical IS NOT NULL OR t.hi_normal IS NOT NULL OR t.low_absolute IS NOT NULL OR t.low_critical IS NOT NULL OR t.low_normal IS NOT NULL OR t.units IS NOT NULL";
 			log.info("Inserting data from " + database + ".concept_numeric into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			//insert into warehouse database from tmp_table...
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			//Update the warehouse database from tmp table...
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.concept_id=t.concept_id,a.hi_absolute=t.hi_absolute,a.hi_critical=t.hi_critical,a.hi_normal=t.hi_normal,a.low_absolute=t.low_absolute,a.low_critical=t.low_critical,a.low_normal=t.low_normal,a.units=t.units,a.precise=t.precise,a.display_precision=t.display_precision WHERE a.implementation_id = t.implementation_id = '" + implementationId + "'";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -514,32 +628,68 @@ public class ImportController {
 	public void importPatientData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException,
 			ClassNotFoundException {
+		
 		String database = remoteDb.getDbName();
 		String insertQuery;
 		String updateQuery;
 		String selectQuery;
 		String tableName;
+		
 		try {
 			// Patient Identifier Type
-			insertQuery = "INSERT IGNORE INTO patient_identifier_type (surrogate_key, implementation_id, patient_identifier_type_id, name, description, format, check_digit, creator, date_created, required, format_description, validator, location_behavior, retired, retired_by, date_retired, retire_reason, uuid, uniqueness_behavior) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', patient_identifier_type_id, name, description, format, check_digit, creator, date_created, required, format_description, validator, location_behavior, retired, retired_by, date_retired, retire_reason, uuid, uniqueness_behavior FROM " + database + ".patient_identifier_type AS t " + filter("t.date_created", null);
+			tableName= "patient_identifier_type";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, patient_identifier_type_id, name, description, format, check_digit, creator, date_created, required, format_description, validator, location_behavior, retired, retired_by, date_retired, retire_reason, uuid, uniqueness_behavior) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', patient_identifier_type_id, name, description, format, check_digit, creator, date_created, required, format_description, validator, location_behavior, retired, retired_by, date_retired, retire_reason, uuid, uniqueness_behavior FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".patient_identifier_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.patient_identifier_type_id=t.patient_identifier_type_id,a.name=t.name,a.description=t.description,a.format=t.format,a.check_digit=t.check_digit,a.creator=t.creator,a.date_created=t.date_created,a.required=t.required,a.format_description=t.format_description,a.validator=t.validator,a.location_behavior=t.location_behavior,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason,a.uniqueness_behavior=t.uniqueness_behavior WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Patient
-			insertQuery = "INSERT INTO patient (surrogate_key, implementation_id, patient_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', patient_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason FROM " + database + ".patient AS t " + filter("t.date_created", "t.date_changed");
+			tableName= "patient";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, patient_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', patient_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason FROM " + database + "."+ tableName +" AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".patient into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.patient_id=t.patient_id,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "'";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Patient Identifier
-			insertQuery = "INSERT INTO patient_identifier (surrogate_key, implementation_id, patient_identifier_id, patient_id, identifier, identifier_type, preferred, location_id, creator, date_created, date_changed, changed_by, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', patient_identifier_id, patient_id, identifier, identifier_type, preferred, location_id, creator, date_created, date_changed, changed_by, voided, voided_by, date_voided, void_reason, uuid FROM " + database + ".patient_identifier AS t " + filter("t.date_created", "t.date_changed");
+			tableName= "patient_identifier";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, patient_identifier_id, patient_id, identifier, identifier_type, preferred, location_id, creator, date_created, date_changed, changed_by, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', patient_identifier_id, patient_id, identifier, identifier_type, preferred, location_id, creator, date_created, date_changed, changed_by, voided, voided_by, date_voided, void_reason, uuid FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".patient_identifier into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.patient_identifier_id=t.patient_identifier_id,a.patient_id=t.patient_id,a.identifier=t.identifier,a.identifier_type=t.identifier_type,a.preferred=t.preferred,a.location_id=t.location_id,a.creator=t.creator,a.date_created=t.date_created,a.date_changed=t.date_changed,a.changed_by=t.changed_by,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Patient Program
-			insertQuery = "INSERT INTO patient_program (surrogate_key, implementation_id, patient_program_id, patient_id, program_id, date_enrolled, date_completed, location_id, outcome_concept_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', patient_program_id, patient_id, program_id, date_enrolled, date_completed, location_id, outcome_concept_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid FROM " + database + ".patient_program AS t " + filter("t.date_created", "t.date_changed");
+			tableName= "patient_program";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, patient_program_id, patient_id, program_id, date_enrolled, date_completed, location_id, outcome_concept_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', patient_program_id, patient_id, program_id, date_enrolled, date_completed, location_id, outcome_concept_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".patient_program into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.patient_program_id=t.patient_program_id,a.patient_id=t.patient_id,a.program_id=t.program_id,a.date_enrolled=t.date_enrolled,a.date_completed=t.date_completed,a.location_id=t.location_id,a.outcome_concept_id=t.outcome_concept_id,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			
+			
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -564,36 +714,76 @@ public class ImportController {
 		String tableName;
 		try {
 			// Encounter Type
-			insertQuery = "INSERT INTO encounter_type (surrogate_key, implementation_id, encounter_type_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, edit_privilege, view_privilege) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', encounter_type_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, edit_privilege, view_privilege FROM " + database + ".encounter_type AS t " + filter("t.date_created", null);
+			tableName= "encounter_type";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, encounter_type_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, edit_privilege, view_privilege) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', encounter_type_id, name, description, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid, edit_privilege, view_privilege FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.encounter_type_id=t.encounter_type_id,a.name=t.name,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason,a.edit_privilege=t.edit_privilege,a.view_privilege=t.view_privilege WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+						
 			// Form
-			insertQuery = "INSERT INTO form (surrogate_key, implementation_id, form_id, name, version, build, published, xslt, template, description, encounter_type, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retired_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', form_id, name, version, build, published, xslt, template, description, encounter_type, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retired_reason, uuid FROM " + database + ".form AS t " + filter("t.date_created", null);
+			tableName="form";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, form_id, name, version, build, published, xslt, template, description, encounter_type, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retired_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', form_id, name, version, build, published, xslt, template, description, encounter_type, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retired_reason, uuid FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".form into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.form_id=t.form_id,a.name=t.name,a.version=t.version,a.build=t.build,a.published=t.published,a.xslt=t.xslt,a.template=t.template,a.description=t.description,a.encounter_type=t.encounter_type,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retired_reason=t.retired_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Encounter Role
-			insertQuery = "INSERT INTO encounter_role (surrogate_key, implementation_id, encounter_role_id, name, description, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', encounter_role_id, name, description, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + ".encounter_role AS t " + filter("t.date_created", "t.date_changed");
+			tableName ="encounter_role";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, encounter_role_id, name, description, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', encounter_role_id, name, description, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".encounter_role into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.encounter_role_id=t.encounter_role_id,a.name=t.name,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			
 			// Encounter
-			insertQuery = "INSERT INTO encounter (surrogate_key, implementation_id, encounter_id, encounter_type, patient_id, location_id, form_id, encounter_datetime, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, visit_id, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', encounter_id, encounter_type, patient_id, location_id, form_id, encounter_datetime, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, visit_id, uuid FROM " + database + ".encounter AS t " + filter("t.date_created", "t.date_changed");
+			tableName = "encounter";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, encounter_id, encounter_type, patient_id, location_id, form_id, encounter_datetime, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, visit_id, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', encounter_id, encounter_type, patient_id, location_id, form_id, encounter_datetime, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, visit_id, uuid FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".encounter into data warehouse");
-			//remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.encounter_id=t.encounter_id,a.encounter_type=t.encounter_type,a.patient_id=t.patient_id,a.location_id=t.location_id,a.form_id=t.form_id,a.encounter_datetime=t.encounter_datetime,a.creator=t.creator,a.date_created=t.date_created,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.visit_id=t.visit_id WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
 			// Encounter Provider
-			insertQuery = "INSERT INTO encounter_provider (surrogate_key, implementation_id, encounter_provider_id, encounter_id, provider_id, encounter_role_id, creator, date_created, changed_by, date_changed, voided, date_voided, voided_by, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "', encounter_provider_id, encounter_id, provider_id, encounter_role_id, creator, date_created, changed_by, date_changed, voided, date_voided, voided_by, void_reason, uuid FROM " + database + ".encounter_provider AS t " + filter("t.date_created", "t.date_changed");
+			tableName= "encounter_provider";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, encounter_provider_id, encounter_id, provider_id, encounter_role_id, creator, date_created, changed_by, date_changed, voided, date_voided, voided_by, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', encounter_provider_id, encounter_id, provider_id, encounter_role_id, creator, date_created, changed_by, date_changed, voided, date_voided, voided_by, void_reason, uuid FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".encounter_provider into data warehouse");
-			//remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.encounter_provider_id=t.encounter_provider_id,a.encounter_id=t.encounter_id,a.provider_id=t.provider_id,a.encounter_role_id=t.encounter_role_id,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.voided=t.voided,a.date_voided=t.date_voided,a.voided_by=t.voided_by,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
 
 			// Observation data is too much to handle in single query, so import in batches
 			tableName = "obs";
 			int from = 1, to = 0;
 			int batchSize = 500;
-			int rows = (int) remoteDb.getTotalRows(tableName, filter("t.date_created", null));
+			int rows = (int) remoteDb.getTotalRows(tableName, filter("date_created", null));
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			while (from <= rows) {
 				to = (from + batchSize) > rows ? rows : (from + batchSize);
@@ -602,8 +792,186 @@ public class ImportController {
 				insertQuery = "INSERT INTO tmp_" + tableName + " (surrogate_key, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_boolean, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 				selectQuery = "SELECT 0,'" + implementationId + "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_boolean, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM " + database + "." + tableName + " AS t " + filter("t.date_created", null) + limitClause + " ";
 				remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+				// Insert new records
+				insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+				localDb.runCommand(CommandType.INSERT, insertQuery);
+				// Update the existing records
+				updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET a.obs_id=t.obs_id,a.person_id=t.person_id,a.concept_id=t.concept_id,a.encounter_id=t.encounter_id,a.order_id=t.order_id,a.obs_datetime=t.obs_datetime,a.location_id=t.location_id,a.obs_group_id=t.obs_group_id,a.accession_number=t.accession_number,a.value_group_id=t.value_group_id,a.value_boolean=t.value_boolean,a.value_coded=t.value_coded,a.value_coded_name_id=t.value_coded_name_id,a.value_drug=t.value_drug,a.value_datetime=t.value_datetime,a.value_numeric=t.value_numeric,a.value_modifier=t.value_modifier,a.value_text =t.value_text ,a.value_complex=t.value_complex,a.comments=t.comments,a.creator=t.creator,a.date_created=t.date_created,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.previous_version=t.previous_version WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+				localDb.runCommand(CommandType.UPDATE, updateQuery);
 			}
+			
+			
 			// TODO: Handle tables visit_type, visit, visit_attribute_type, visit_attribute, form, field, form_field, field_type
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Load data from visit-related tables into data warehouse
+	 * 
+	 * @param implementationId
+	 * @param database
+	 * @throws ClassNotFoundException
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
+	 */
+	public void importVisitData(DatabaseUtil remoteDb, int implementationId)
+			throws InstantiationException, IllegalAccessException,
+			ClassNotFoundException {
+		
+		String database = remoteDb.getDbName();
+		String insertQuery;
+		String updateQuery;
+		String selectQuery;
+		String tableName;
+		
+		try {
+			
+			//Visit
+			tableName= "visit";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "',  FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET  WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			//Visit_type
+			tableName= "visit_type";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "',  FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET  WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			//Visit attribute type
+			tableName= "visit_attribute_type";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "',  FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET  WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			//Visit attribute
+			tableName= "visit_attribute";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "',  FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET  WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+		
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Load data from form-related tables into data warehouse
+	 * 
+	 * @param implementationId
+	 * @param database
+	 * @throws ClassNotFoundException
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
+	 */
+	public void importFormData(DatabaseUtil remoteDb, int implementationId)
+			throws InstantiationException, IllegalAccessException,
+			ClassNotFoundException {
+		
+		String database = remoteDb.getDbName();
+		String insertQuery;
+		String updateQuery;
+		String selectQuery;
+		String tableName;
+		
+		try {
+			
+			//Form
+			tableName= "form";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "',  FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET  WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			//field
+			tableName= "field";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "',  FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET  WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			//Form field
+			tableName= "form_field";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "',  FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET  WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			//Field types
+			tableName= "field_type";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "',  FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET  WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+			//Field answer
+			tableName= "field_answer";
+			insertQuery = "INSERT INTO tmp_"+ tableName +" (surrogate_key, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "',  FROM " + database + "."+ tableName +" AS t "+ filter("t.date_created", null);
+			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), localDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_" + tableName + " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName + " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName + " AS t SET  WHERE a.implementation_id = t.implementation_id = '" + implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
+			
+		
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

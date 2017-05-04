@@ -426,9 +426,9 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "concept_stop_word");
 		insertQuery = "INSERT INTO temp_concept_stop_word(concept_stop_word_id,word,locale,uuid)VALUES(?,?,?,?)";
 		selectQuery = "SELECT concept_stop_word_id,word,locale,uuid FROM concept_stop_word";
-		remoteSelectInsert(selectQuery, insertQuery);
-		insertQuery = "INSERT IGNORE INTO concept_stop_word(concept_stop_word_id,word,locale,uuid) SELECT concept_stop_word_id,word,locale,uuid FROM temp_concept_stop_word";
-		localInsert(insertQuery);
+		// remoteSelectInsert(selectQuery, insertQuery);
+		// insertQuery = "INSERT IGNORE INTO concept_stop_word(concept_stop_word_id,word,locale,uuid) SELECT concept_stop_word_id,word,locale,uuid FROM temp_concept_stop_word";
+		// localInsert(insertQuery);
 
 		// concept
 		createTempTable(getLocalDb(), "concept");

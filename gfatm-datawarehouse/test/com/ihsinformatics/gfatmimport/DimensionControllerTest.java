@@ -12,26 +12,56 @@ Interactive Health Solutions, hereby disclaims all copyright interest in this pr
 
 package com.ihsinformatics.gfatmimport;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
-import org.dbunit.DBTestCase;
+import junit.framework.TestCase;
+
+import org.dbunit.Assertion;
+import org.dbunit.IDatabaseTester;
+import org.dbunit.JdbcDatabaseTester;
 import org.dbunit.database.DatabaseConnection;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.database.QueryDataSet;
-import org.dbunit.database.search.TablesDependencyHelper;
 import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.xml.FlatXmlDataSet;
+import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import com.ihsinformatics.util.DatabaseUtil;
 
 /**
  * @author owais.hussain@ihsinformatics.com
  *
  */
-public class DimensionControllerTest extends DBTestCase {
+public class DimensionControllerTest extends TestCase {
+
+	private IDatabaseTester databaseTester;
+	private static String dbUrl = "jdbc:mysql://localhost:3306/gfatm_dw";
+	private static String driver = "com.mysql.jdbc.Driver";
+	private static String username = "root";
+	private static String password = "jingle94";
+
+	public DimensionControllerTest(String name) {
+		super(name);
+		try {
+			databaseTester = new JdbcDatabaseTester("org.hsqldb.jdbcDriver",
+					"jdbc:hsqldb:sample", "sa", "");
+			DatabaseUtil db = new DatabaseUtil(dbUrl, "gfatm_dw", driver, username, password);
+			DimensionController dc = new DimensionController(db);
+			dc.modelDimensions();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+	}
 
 	/**
 	 * Run as Java Application to generate XML copy of database
@@ -41,9 +71,9 @@ public class DimensionControllerTest extends DBTestCase {
 	 */
 	public static void main(String[] args) throws Exception {
 		// database connection
-		Class.forName("com.mysql.jdbc.Driver");
-		Connection jdbcConnection = DriverManager.getConnection(
-				"jdbc:mysql://localhost:3306/gfatm_dw", "root", "jingle94");
+		Class.forName(driver);
+		Connection jdbcConnection = DriverManager.getConnection(dbUrl,
+				username, password);
 		IDatabaseConnection connection = new DatabaseConnection(jdbcConnection);
 
 		// Database export
@@ -89,16 +119,14 @@ public class DimensionControllerTest extends DBTestCase {
 		// FileOutputStream("res/gfatm_dim_test.xml"));
 	}
 
-	@Override
-	protected IDataSet getDataSet() throws Exception {
-		return null;
-	}
-
 	/**
 	 * @throws java.lang.Exception
 	 */
 	@Before
 	public void setUp() throws Exception {
+		IDataSet dataSet = null;
+		databaseTester.setDataSet(dataSet);
+		databaseTester.onSetup();
 	}
 
 	/**
@@ -106,26 +134,20 @@ public class DimensionControllerTest extends DBTestCase {
 	 */
 	@After
 	public void tearDown() throws Exception {
+		databaseTester.onTearDown();
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.ihsinformatics.gfatmimport.DimensionController#modelDimensions()}
-	 * .
-	 */
-	@Test
-	public final void testModelDimensions() {
-		fail("Not yet implemented"); // TODO
-	}
-
-	/**
-	 * Test method for
-	 * {@link com.ihsinformatics.gfatmimport.DimensionController#modelDimensions(java.util.Date, java.util.Date, int)}
-	 * .
-	 */
-	@Test
-	public final void testModelDimensionsDateDateInt() {
-		fail("Not yet implemented"); // TODO
+	public void testMe() throws Exception {
+		// Fetch database data after executing your code
+		IDataSet databaseDataSet = databaseTester.getConnection()
+				.createDataSet();
+		ITable actualTable = databaseDataSet.getTable("TABLE_NAME");
+		// Load expected data from an XML dataset
+		IDataSet expectedDataSet = new FlatXmlDataSetBuilder().build(new File(
+				"dimensions_data.xml"));
+		ITable expectedTable = expectedDataSet.getTable("TABLE_NAME");
+		// Assert actual database table match expected table
+		Assertion.assertEquals(expectedTable, actualTable);
 	}
 
 	/**

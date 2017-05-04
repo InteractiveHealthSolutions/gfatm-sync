@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<dataset>
+  <fact_concept/>
+  <fact_location implementation_id="1" datetime_id="2091" full_date="2005-09-22" year="2005" month="9" date="22" day_name="Thursday" month_name="September" total="1"/>
+  <fact_location implementation_id="1" datetime_id="4962" full_date="2013-08-02" year="2013" month="8" date="2" day_name="Friday" month_name="August" total="7"/>
+  <fact_location implementation_id="1" datetime_id="6078" full_date="2016-08-22" year="2016" month="8" date="22" day_name="Monday" month_name="August" total="10"/>
+  <fact_location implementation_id="1" datetime_id="6080" full_date="2016-08-24" year="2016" month="8" date="24" day_name="Wednesday" month_name="August" total="5"/>
+  <fact_location implementation_id="1" datetime_id="6108" full_date="2016-09-21" year="2016" month="9" date="21" day_name="Wednesday" month_name="September" total="5"/>
+  <fact_location implementation_id="1" datetime_id="6220" full_date="2017-01-11" year="2017" month="1" date="11" day_name="Wednesday" month_name="January" total="8"/>
+  <fact_location implementation_id="1" datetime_id="6242" full_date="2017-02-02" year="2017" month="2" date="2" day_name="Thursday" month_name="February" total="13"/>
+  <fact_location implementation_id="1" datetime_id="6246" full_date="2017-02-06" year="2017" month="2" date="6" day_name="Monday" month_name="February" total="11"/>
+  <fact_location implementation_id="1" datetime_id="6255" full_date="2017-02-15" year="2017" month="2" date="15" day_name="Wednesday" month_name="February" total="1"/>
+  <fact_location implementation_id="1" datetime_id="6278" full_date="2017-03-10" year="2017" month="3" date="10" day_name="Friday" month_name="March" total="1"/>
+  <fact_user implementation_id="1" datetime_id="1827" full_date="2005-01-01" year="2005" month="1" date="1" day_name="Saturday" month_name="January" users="1"/>
+  <fact_user implementation_id="1" datetime_id="3768" full_date="2010-04-26" year="2010" month="4" date="26" day_name="Monday" month_name="April" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6075" full_date="2016-08-19" year="2016" month="8" date="19" day_name="Friday" month_name="August" users="5"/>
+  <fact_user implementation_id="1" datetime_id="6078" full_date="2016-08-22" year="2016" month="8" date="22" day_name="Monday" month_name="August" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6088" full_date="2016-09-01" year="2016" month="9" date="1" day_name="Thursday" month_name="September" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6108" full_date="2016-09-21" year="2016" month="9" date="21" day_name="Wednesday" month_name="September" users="18"/>
+  <fact_user implementation_id="1" datetime_id="6109" full_date="2016-09-22" year="2016" month="9" date="22" day_name="Thursday" month_name="September" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6152" full_date="2016-11-04" year="2016" month="11" date="4" day_name="Friday" month_name="November" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6193" full_date="2016-12-15" year="2016" month="12" date="15" day_name="Thursday" month_name="December" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6206" full_date="2016-12-28" year="2016" month="12" date="28" day_name="Wednesday" month_name="December" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6219" full_date="2017-01-10" year="2017" month="1" date="10" day_name="Tuesday" month_name="January" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6236" full_date="2017-01-27" year="2017" month="1" date="27" day_name="Friday" month_name="January" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6241" full_date="2017-02-01" year="2017" month="2" date="1" day_name="Wednesday" month_name="February" users="2"/>
+  <fact_user implementation_id="1" datetime_id="6249" full_date="2017-02-09" year="2017" month="2" date="9" day_name="Thursday" month_name="February" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6250" full_date="2017-02-10" year="2017" month="2" date="10" day_name="Friday" month_name="February" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6261" full_date="2017-02-21" year="2017" month="2" date="21" day_name="Tuesday" month_name="February" users="2"/>
+  <fact_user implementation_id="1" datetime_id="6262" full_date="2017-02-22" year="2017" month="2" date="22" day_name="Wednesday" month_name="February" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6269" full_date="2017-03-01" year="2017" month="3" date="1" day_name="Wednesday" month_name="March" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6280" full_date="2017-03-12" year="2017" month="3" date="12" day_name="Sunday" month_name="March" users="18"/>
+  <fact_user implementation_id="1" datetime_id="6281" full_date="2017-03-13" year="2017" month="3" date="13" day_name="Monday" month_name="March" users="27"/>
+  <fact_user implementation_id="1" datetime_id="6296" full_date="2017-03-28" year="2017" month="3" date="28" day_name="Tuesday" month_name="March" users="1"/>
+  <fact_user implementation_id="1" datetime_id="6298" full_date="2017-03-30" year="2017" month="3" date="30" day_name="Thursday" month_name="March" users="5"/>
+  <fact_user implementation_id="1" datetime_id="6299" full_date="2017-03-31" year="2017" month="3" date="31" day_name="Friday" month_name="March" users="2"/>
+  <fact_user implementation_id="1" datetime_id="6302" full_date="2017-04-03" year="2017" month="4" date="3" day_name="Monday" month_name="April" users="1"/>
+</dataset>

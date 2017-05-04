@@ -69,8 +69,8 @@ public class DimensionController {
 			log.info("Starting dimension modeling");
 			timeDimension();
 			//conceptDimension(from, to, implementationId);
-			locationDimension(from, to, implementationId);
-			userDimension(from, to, implementationId);
+			//locationDimension(from, to, implementationId);
+			//userDimension(from, to, implementationId);
 			patientDimension(from, to, implementationId);
 			encounterAndObsDimension(from, to, implementationId);
 			log.info("Finished dimension modeling");
@@ -244,10 +244,53 @@ public class DimensionController {
 	 */
 	public void userDimension(Date from, Date to, int implementationId) throws InstantiationException,
 			IllegalAccessException, ClassNotFoundException {
-		StringBuilder query = new StringBuilder(
-				"insert ignore into dim_user (surrogate_key, implementation_id, user_id, username, person_id, identifier, secret_question, secret_answer, creator, date_created, changed_by, date_changed, retired, retire_reason, uuid) ");
-		query.append("select u.surrogate_key, u.implementation_id, u.user_id, u.username, u.person_id, p.identifier, u.secret_question, u.secret_answer, u.creator, u.date_created, u.changed_by, u.date_changed, u.retired, u.retire_reason, u.uuid from users as u ");
-		query.append("left outer join provider as p on p.implementation_id = u.implementation_id and p.person_id = u.person_id");
+		log.info("Transforming user roles.");
+		db.runCommand(CommandType.DROP,
+				"drop table if exists user_role_merged");
+		Object[][] roles = db.getTableData("role", "role", null, true);
+		StringBuilder groupConcat = new StringBuilder();
+		for (Object[] role : roles) {
+			String roleName = role[0].toString().replace(" ", "_")
+					.replace("'", "").replace("(\\W|^_)*", "_").toLowerCase();
+			groupConcat.append("group_concat(if(a.role = '"
+					+ roleName + "', a.role, null)) as " + roleName + ", ");
+		}
+		groupConcat.append("'' as BLANK ");
+		StringBuilder query = new StringBuilder("create table user_role_merged ");
+		query.append("select a.implementation_id, a.user_id, ");
+		query.append(groupConcat.toString());
+		query.append("from user_role as a ");
+		query.append("where a.implementation_id = '" + implementationId + "' ");
+		query.append("group by a.user_id");
+		db.runCommand(CommandType.CREATE, query.toString());
+		db.runCommand(CommandType.ALTER, "alter table user_role_merged add primary key (implementation_id, user_id)");
+		/* Again, not the best example of my code */
+		String[] columnList;
+		StringBuilder columns = new StringBuilder();
+		String aliasPrefix = "urm";
+		try {
+			// Fetch list of columns in newly created table
+			columnList = db.getColumnNames("user_role_merged");
+			ArrayList<String> dimColumns = CollectionsUtil.toArrayList(db.getColumnNames("dim_user"));
+			for (int i = 2; i < columnList.length - 1; i++) { // Skipping undesired columns
+				columns.append(aliasPrefix + ".");
+				columns.append(columnList[i] +  ",");
+				// Additionally, hunt for missing columns in dim_location and create any missing ones
+				if (!dimColumns.contains(columnList[i])) {
+					log.info("Creating missing column " + columnList[i] + " in dim_user.");
+					db.addColumn("dim_user", columnList[i], "VARCHAR(255)");
+				}
+			}
+			columns.deleteCharAt(columns.lastIndexOf(","));
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		query = new StringBuilder(
+				"insert ignore into dim_user (surrogate_key, implementation_id, user_id, username, person_id, identifier, secret_question, secret_answer, creator, date_created, changed_by, date_changed, retired, retire_reason, uuid, " + columns.toString().replace(aliasPrefix + ".", "") + ") ");
+		query.append("select u.surrogate_key, u.implementation_id, u.user_id, u.username, u.person_id, p.identifier, u.secret_question, pa1.value_reference as intervention, u.creator, u.date_created, u.changed_by, u.date_changed, u.retired, u.retire_reason, u.uuid, " + columns + " from users as u ");
+		query.append("left outer join provider as p on p.implementation_id = u.implementation_id and p.person_id = u.person_id ");
+		query.append("left outer join provider_attribute as pa1 on pa1.implementation_id = u.implementation_id and pa1.provider_id = p.provider_id and pa1.attribute_type_id = 1 ");
+		query.append("left outer join user_role_merged as urm on urm.implementation_id = u.implementation_id and urm.user_id = u.user_id ");
 		log.info("Inserting new users to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
 	}

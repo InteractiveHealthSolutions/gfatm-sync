@@ -22,7 +22,6 @@ import com.ihsinformatics.util.CollectionsUtil;
 import com.ihsinformatics.util.CommandType;
 import com.ihsinformatics.util.DatabaseUtil;
 import com.ihsinformatics.util.DateTimeUtil;
-import com.ihsinformatics.util.StringUtil;
 
 /**
  * @author owais.hussain@ihsinformatics.com
@@ -68,9 +67,9 @@ public class DimensionController {
 		try {
 			log.info("Starting dimension modeling");
 			timeDimension();
-			//conceptDimension(from, to, implementationId);
-			//locationDimension(from, to, implementationId);
-			//userDimension(from, to, implementationId);
+			conceptDimension(from, to, implementationId);
+			locationDimension(from, to, implementationId);
+			userDimension(from, to, implementationId);
 			patientDimension(from, to, implementationId);
 			encounterAndObsDimension(from, to, implementationId);
 			log.info("Finished dimension modeling");
@@ -80,7 +79,7 @@ public class DimensionController {
 			e.printStackTrace();
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
-		} catch (ParseException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -143,8 +142,8 @@ public class DimensionController {
 		log.info("Deleting existing concepts.");
 		db.runCommand(CommandType.DELETE, deleteQuery);
 		StringBuilder query = new StringBuilder();
-		query.append("insert ignore into dim_concept (surrogate_key, implementation_id, concept_id, full_name, concept, description, retired, data_type, class, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, creator, date_created, version, changed_by, date_changed, uuid) ");
-		query.append("select c.surrogate_key, c.implementation_id, c.concept_id, n1.name as full_name, n2.name as concept, d.description, c.retired, dt.name as data_type, cl.name as class, cn.hi_absolute, cn.hi_critical, cn.hi_normal, cn.low_absolute, cn.low_critical, cn.low_normal, c.creator, c.date_created, c.version, c.changed_by, c.date_changed, c.uuid from concept as c ");
+		query.append("insert ignore into dim_concept (surrogate_id, implementation_id, concept_id, full_name, concept, description, retired, data_type, class, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, creator, date_created, version, changed_by, date_changed, uuid) ");
+		query.append("select c.surrogate_id, c.implementation_id, c.concept_id, n1.name as full_name, n2.name as concept, d.description, c.retired, dt.name as data_type, cl.name as class, cn.hi_absolute, cn.hi_critical, cn.hi_normal, cn.low_absolute, cn.low_critical, cn.low_normal, c.creator, c.date_created, c.version, c.changed_by, c.date_changed, c.uuid from concept as c ");
 		query.append("left outer join concept_datatype as dt on dt.implementation_id = c.implementation_id and dt.concept_datatype_id = c.datatype_id ");
 		query.append("left outer join concept_class as cl on cl.implementation_id = c.implementation_id and cl.concept_class_id = c.class_id ");
 		query.append("left outer join concept_name as n1 on n1.implementation_id = c.implementation_id and n1.concept_id = c.concept_id and n1.locale = 'en' and n1.voided = 0 and n1.concept_name_type = 'FULLY_SPECIFIED' ");
@@ -152,7 +151,7 @@ public class DimensionController {
 		query.append("left outer join concept_description as d on d.implementation_id = c.implementation_id and d.concept_id = c.concept_id and d.locale = 'en' ");
 		query.append("left outer join concept_numeric as cn on cn.implementation_id = c.implementation_id and cn.concept_id = c.concept_id ");
 		query.append("where c.implementation_id = '" + implementationId + "' ");
-		query.append("and c.surrogate_key not in (select surrogate_key from dim_concept where implementation_id = c.implementation_id)");
+		query.append("and c.surrogate_id not in (select surrogate_id from dim_concept where implementation_id = c.implementation_id)");
 		log.info("Inserting new concepts to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
 		query = new StringBuilder(
@@ -226,11 +225,11 @@ public class DimensionController {
 			e.printStackTrace();
 		}
 		query = new StringBuilder(
-				"insert ignore into dim_location (surrogate_key, implementation_id, location_id, location_name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, retired, parent_location, uuid, " + columns.toString().replace(aliasPrefix + ".", "") + ") ");
-		query.append("select l.surrogate_key, l.implementation_id, l.location_id, l.name as location_name, l.description, l.address1, l.address2, l.city_village, l.state_province, l.postal_code, l.country, l.latitude, l.longitude, l.creator, l.date_created, l.retired, l.parent_location, l.uuid, " + columns + " from location as l ");
+				"insert ignore into dim_location (surrogate_id, implementation_id, location_id, location_name, description, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, creator, date_created, retired, parent_location, uuid, " + columns.toString().replace(aliasPrefix + ".", "") + ") ");
+		query.append("select l.surrogate_id, l.implementation_id, l.location_id, l.name as location_name, l.description, l.address1, l.address2, l.city_village, l.state_province, l.postal_code, l.country, l.latitude, l.longitude, l.creator, l.date_created, l.retired, l.parent_location, l.uuid, " + columns + " from location as l ");
 		query.append("left outer join location_attribute_merged as lam using (implementation_id, location_id) ");
 		query.append("where l.implementation_id = '" + implementationId + "' ");
-		query.append("and l.surrogate_key not in (select surrogate_key from dim_location where implementation_id = l.implementation_id)");
+		query.append("and l.surrogate_id not in (select surrogate_id from dim_location where implementation_id = l.implementation_id)");
 		log.info("Inserting new locations to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
 	}
@@ -253,7 +252,7 @@ public class DimensionController {
 			String roleName = role[0].toString().replace(" ", "_")
 					.replace("'", "").replace("(\\W|^_)*", "_").toLowerCase();
 			groupConcat.append("group_concat(if(a.role = '"
-					+ roleName + "', a.role, null)) as " + roleName + ", ");
+					+ role[0].toString() + "', 'Yes', null)) as " + roleName + ", ");
 		}
 		groupConcat.append("'' as BLANK ");
 		StringBuilder query = new StringBuilder("create table user_role_merged ");
@@ -286,8 +285,8 @@ public class DimensionController {
 			e.printStackTrace();
 		}
 		query = new StringBuilder(
-				"insert ignore into dim_user (surrogate_key, implementation_id, user_id, username, person_id, identifier, secret_question, secret_answer, creator, date_created, changed_by, date_changed, retired, retire_reason, uuid, " + columns.toString().replace(aliasPrefix + ".", "") + ") ");
-		query.append("select u.surrogate_key, u.implementation_id, u.user_id, u.username, u.person_id, p.identifier, u.secret_question, pa1.value_reference as intervention, u.creator, u.date_created, u.changed_by, u.date_changed, u.retired, u.retire_reason, u.uuid, " + columns + " from users as u ");
+				"insert ignore into dim_user (surrogate_id, implementation_id, user_id, username, person_id, identifier, secret_question, secret_answer, creator, date_created, changed_by, date_changed, retired, retire_reason, uuid, " + columns.toString().replace(aliasPrefix + ".", "") + ") ");
+		query.append("select u.surrogate_id, u.implementation_id, u.user_id, u.username, u.person_id, p.identifier, u.secret_question, pa1.value_reference as intervention, u.creator, u.date_created, u.changed_by, u.date_changed, u.retired, u.retire_reason, u.uuid, " + columns + " from users as u ");
 		query.append("left outer join provider as p on p.implementation_id = u.implementation_id and p.person_id = u.person_id ");
 		query.append("left outer join provider_attribute as pa1 on pa1.implementation_id = u.implementation_id and pa1.provider_id = p.provider_id and pa1.attribute_type_id = 1 ");
 		query.append("left outer join user_role_merged as urm on urm.implementation_id = u.implementation_id and urm.user_id = u.user_id ");
@@ -321,7 +320,7 @@ public class DimensionController {
 		db.runCommand(CommandType.CREATE, query.toString());
 		db.runCommand(
 				CommandType.ALTER,
-				"alter table patient_latest_identifier add primary key surrogate_key (surrogate_key)");
+				"alter table patient_latest_identifier add primary key surrogate_id (surrogate_id)");
 
 		// Collect latest person names
 		log.info("Selecting people names (preferred/latest).");
@@ -334,7 +333,7 @@ public class DimensionController {
 		query.append("select * from person_name as a where a.person_name_id = (select max(person_name_id) from person_name where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 0)");
 		db.runCommand(CommandType.INSERT, query.toString());
 		db.runCommand(CommandType.ALTER,
-				"alter table person_latest_name add primary key surrogate_key (surrogate_key)");
+				"alter table person_latest_name add primary key surrogate_id (surrogate_id)");
 
 		// Collect latest person addresses
 		log.info("Selecting people addresses (preferred/latest).");
@@ -347,7 +346,7 @@ public class DimensionController {
 		query.append("select * from person_address as a where a.person_address_id = (select max(person_address_id) from person_address where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 0)");
 		db.runCommand(CommandType.INSERT, query.toString());
 		db.runCommand(CommandType.ALTER,
-				"alter table person_latest_address add primary key surrogate_key (surrogate_key)");
+				"alter table person_latest_address add primary key surrogate_id (surrogate_id)");
 
 		// Recreate person attributes
 		log.info("Transforming people attribute.");
@@ -366,7 +365,7 @@ public class DimensionController {
 		}
 		groupConcat.append("'' as BLANK ");
 		query = new StringBuilder("create table person_attribute_merged ");
-		query.append("select a.implementation_id, a.person_id, a.creator, a.date_created, a.uuid, ");
+		query.append("select a.implementation_id, a.person_id, ");
 		query.append(groupConcat.toString());
 		query.append("from person_attribute as a where a.voided = 0 ");
 		query.append("group by a.implementation_id, a.person_id");
@@ -374,16 +373,38 @@ public class DimensionController {
 		db.runCommand(
 				CommandType.ALTER,
 				"alter table person_attribute_merged add primary key (implementation_id, person_id)");
+		/* Repeat ... repeat */
+		String[] columnList;
+		StringBuilder columns = new StringBuilder();
+		String aliasPrefix = "pam";
+		try {
+			// Fetch list of columns in newly created table
+			columnList = db.getColumnNames("person_attribute_merged");
+			ArrayList<String> dimColumns = CollectionsUtil.toArrayList(db.getColumnNames("dim_patient"));
+			for (int i = 2; i < columnList.length - 1; i++) { // Skipping undesired columns
+				columns.append(aliasPrefix + ".");
+				columns.append(columnList[i] +  ",");
+				// Additionally, hunt for missing columns in dim_location and create any missing ones
+				if (!dimColumns.contains(columnList[i])) {
+					log.info("Creating missing column " + columnList[i] + " in dim_patient.");
+					db.addColumn("dim_patient", columnList[i], "VARCHAR(255)");
+				}
+			}
+			columns.deleteCharAt(columns.lastIndexOf(","));
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 
 		// Fill the patient dimension data
-		query = new StringBuilder(
-				"insert ignore into dim_patient (surrogate_key, implementation_id, patient_id, identifier, secondary_identifier, gender, birthdate, birthdate_estimated, dead, first_name, middle_name, last_name, race, birthplace, citizenship, mother_name, civil_status, health_district, health_center, primary_mobile, secondary_mobile, primary_phone, secondary_phone, primary_mobile_owner, secondary_mobile_owner, primary_phone_owner, secondary_phone_owner, address1, address2, city_village, state_province, postal_code, country, creator, date_created, changed_by, date_changed, voided, uuid) ");
-		query.append("select p.surrogate_key, p.implementation_id, p.patient_id, i.identifier, pr.gender, pr.birthdate, pr.birthdate_estimated, pr.dead, n.given_name as first_name, n.middle_name, n.family_name as last_name, pa.*, a.address1, a.address2, a.city_village, a.state_province, a.postal_code, a.country, p.creator, p.date_created, p.changed_by, p.date_changed, p.voided, pr.uuid from patient as p ");
+		query = new StringBuilder("insert ignore into dim_patient (surrogate_id, implementation_id, patient_id, patient_identifier, enrs, external_id, gender, birthdate, birthdate_estimated, dead, first_name, middle_name, last_name, address1, address2, city_village, state_province, postal_code, country, creator, date_created, changed_by, date_changed, voided, uuid, " + columns.toString().replace(aliasPrefix + ".", "") + ") ");
+		query.append("select p.surrogate_id, p.implementation_id, p.patient_id, pid.identifier as patient_identifier, enrs.identifier as enrs, eid.identifier as external_id, pr.gender, pr.birthdate, pr.birthdate_estimated, pr.dead, n.given_name as first_name, n.middle_name, n.family_name as last_name, a.address1, a.address2, a.city_village, a.state_province, a.postal_code, a.country, p.creator, p.date_created, p.changed_by, p.date_changed, p.voided, pr.uuid, " + columns + " from patient as p ");
 		query.append("inner join person as pr on pr.implementation_id = p.implementation_id and pr.person_id = p.patient_id ");
-		query.append("left outer join patient_latest_identifier as i on i.implementation_id = p.implementation_id and i.patient_id = p.patient_id ");
-		query.append("left outer join person_latest_name as n on n.implementation_id = p.implementation_id and n.person_id = pr.person_id ");
+		query.append("inner join patient_latest_identifier as pid on pid.implementation_id = p.implementation_id and pid.patient_id = p.patient_id and pid.identifier_type = 3 ");
+		query.append("left outer join patient_latest_identifier as enrs on enrs.implementation_id = p.implementation_id and enrs.patient_id = p.patient_id and enrs.identifier_type = 4 ");
+		query.append("left outer join patient_latest_identifier as eid on eid.implementation_id = p.implementation_id and eid.patient_id = p.patient_id and eid.identifier_type = 5 ");
+		query.append("inner join person_latest_name as n on n.implementation_id = p.implementation_id and n.person_id = pr.person_id ");
 		query.append("left outer join person_latest_address as a on a.implementation_id = p.implementation_id and a.person_id = p.patient_id ");
-		query.append("left outer join person_attribute_merged as pa on pa.implementation_id = p.implementation_id and pa.person_id = p.patient_id ");
+		query.append("left outer join person_attribute_merged as pam on pam.implementation_id = p.implementation_id and pam.person_id = p.patient_id ");
 		query.append("where p.voided = 0");
 		log.info("Inserting new patients to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
@@ -401,7 +422,7 @@ public class DimensionController {
 		// Fill the encounter dimension data
 		StringBuilder query = new StringBuilder(
 				"insert ignore into dim_encounter ");
-		query.append("select e.surrogate_key, e.implementation_id, e.encounter_id, e.encounter_type, et.name as encounter_name, et.description, e.patient_id, e.location_id, p.identifier as provider, e.encounter_datetime as date_entered, e.creator, e.date_created as date_start, e.changed_by, e.date_changed, e.date_created as date_end, e.uuid from encounter as e ");
+		query.append("select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, et.name as encounter_name, et.description, e.patient_id, e.location_id, p.identifier as provider, e.encounter_datetime as date_entered, e.creator, e.date_created as date_start, e.changed_by, e.date_changed, e.date_created as date_end, e.uuid from encounter as e ");
 		query.append("inner join encounter_type as et on et.encounter_type_id = e.encounter_type ");
 		query.append("left outer join encounter_provider as ep on ep.encounter_id = e.encounter_id ");
 		query.append("left outer join provider as p on p.person_id = ep.provider_id ");
@@ -411,7 +432,7 @@ public class DimensionController {
 
 		// Fill the observation dimension data
 		query = new StringBuilder("insert ignore into dim_obs ");
-		query.append("select e.surrogate_key, e.implementation_id, e.encounter_id, e.encounter_type, e.patient_id, p.identifier, e.provider, o.obs_id, o.concept_id, c.concept as question, obs_datetime, o.location_id, concat(ifnull(o.value_boolean, ''), ifnull(ifnull(c2.concept, c2.full_name), ''), ifnull(o.value_datetime, ''), ifnull(o.value_numeric, ''), ifnull(o.value_text, '')) as answer, o.value_boolean, o.value_coded, o.value_datetime, o.value_numeric, o.value_text, o.creator, o.date_created, o.voided, o.uuid from obs as o ");
+		query.append("select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, e.patient_id, p.identifier, e.provider, o.obs_id, o.concept_id, c.concept as question, obs_datetime, o.location_id, concat(ifnull(o.value_boolean, ''), ifnull(ifnull(c2.concept, c2.full_name), ''), ifnull(o.value_datetime, ''), ifnull(o.value_numeric, ''), ifnull(o.value_text, '')) as answer, o.value_boolean, o.value_coded, o.value_datetime, o.value_numeric, o.value_text, o.creator, o.date_created, o.voided, o.uuid from obs as o ");
 		query.append("inner join dim_concept as c on c.implementation_id = o.implementation_id and c.concept_id = o.concept_id ");
 		query.append("inner join dim_encounter as e on e.implementation_id = o.implementation_id and e.encounter_id = o.encounter_id ");
 		query.append("inner join dim_patient as p on p.implementation_id = e.implementation_id and p.patient_id = e.patient_id ");

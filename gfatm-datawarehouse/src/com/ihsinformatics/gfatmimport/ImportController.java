@@ -704,7 +704,7 @@ public class ImportController {
 					+ ".location into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into wareHouse database from tmp_table
+			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -736,7 +736,7 @@ public class ImportController {
 					+ ".location_attribute into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into wareHouse database from tmp_table
+			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -767,7 +767,7 @@ public class ImportController {
 					+ ".location_tag into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into wareHouse database from tmp_table
+			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -796,7 +796,7 @@ public class ImportController {
 					+ ".location_tag_map into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into wareHouse database from tmp_table
+			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
 					+ tableName + " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -878,7 +878,7 @@ public class ImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into warehouse database from tmp_table...
+			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -910,7 +910,7 @@ public class ImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into warehouse database from tmp_table...
+			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -942,7 +942,7 @@ public class ImportController {
 					+ ".concept_map_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into warehouse database from tmp_table...
+			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -974,7 +974,7 @@ public class ImportController {
 					+ ".concept into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into warehouse database from tmp_table...
+			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -1006,7 +1006,7 @@ public class ImportController {
 					+ ".concept_name into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into warehouse database from tmp_table...
+			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -1038,7 +1038,7 @@ public class ImportController {
 					+ ".concept_description into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into warehouse database from tmp_table...
+			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -1070,7 +1070,7 @@ public class ImportController {
 					+ ".concept_answer into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into warehouse database from tmp_table...
+			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
@@ -1104,9 +1104,9 @@ public class ImportController {
 					+ ".concept_numeric into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), localDb.getConnection());
-			// insert into warehouse database from tmp_table...
+			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
-					+ tableName + " AS t WHERE NOT EXISTS (SELECT * FROM "
+					+ tableName + " AS t WHERE concept_id NOT IN (SELECT concept_id FROM "
 					+ tableName
 					+ " WHERE implementation_id = t.implementation_id)";
 			localDb.runCommand(CommandType.INSERT, insertQuery);
@@ -1116,9 +1116,8 @@ public class ImportController {
 					+ " AS a, tmp_"
 					+ tableName
 					+ " AS t SET a.concept_id=t.concept_id,a.hi_absolute=t.hi_absolute,a.hi_critical=t.hi_critical,a.hi_normal=t.hi_normal,a.low_absolute=t.low_absolute,a.low_critical=t.low_critical,a.low_normal=t.low_normal,a.units=t.units,a.precise=t.precise,a.display_precision=t.display_precision WHERE a.implementation_id = t.implementation_id = '"
-					+ implementationId + "'";
+					+ implementationId + "' AND a.concept_id = t.concept_id";
 			localDb.runCommand(CommandType.UPDATE, updateQuery);
-
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

@@ -141,13 +141,29 @@ public class DimensionController {
 		String deleteQuery = "delete from dim_concept where implementation_id = " + implementationId;
 		log.info("Deleting existing concepts.");
 		db.runCommand(CommandType.DELETE, deleteQuery);
+		
 		StringBuilder query = new StringBuilder();
-		query.append("insert ignore into dim_concept (surrogate_id, implementation_id, concept_id, full_name, concept, description, retired, data_type, class, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, creator, date_created, version, changed_by, date_changed, uuid) ");
-		query.append("select c.surrogate_id, c.implementation_id, c.concept_id, n1.name as full_name, n2.name as concept, d.description, c.retired, dt.name as data_type, cl.name as class, cn.hi_absolute, cn.hi_critical, cn.hi_normal, cn.low_absolute, cn.low_critical, cn.low_normal, c.creator, c.date_created, c.version, c.changed_by, c.date_changed, c.uuid from concept as c ");
+		// Creating table for relevant concept names
+		log.info("Selecting concept names (preferred/latest).");
+		db.runCommand(CommandType.DROP, "drop table if exists concept_latest_name");
+		query = new StringBuilder("create table concept_latest_name ");
+		query.append("select c.implementation_id, c.concept_id, ");
+		query.append("(select max(concept_name_id) from concept_name where implementation_id = c.implementation_id and concept_id = c.concept_id and locale = 'en' and voided = 0 and concept_name_type is null) as default_name, ");
+		query.append("(select max(concept_name_id) from concept_name where implementation_id = c.implementation_id and concept_id = c.concept_id and locale = 'en' and voided = 0 and concept_name_type = 'SHORT') as short_name, ");
+		query.append("(select max(concept_name_id) from concept_name where implementation_id = c.implementation_id and concept_id = c.concept_id and locale = 'en' and voided = 0 and concept_name_type = 'FULLY_SPECIFIED') as full_name from concept as c ");
+		query.append("having concat(ifnull(default_name, ''), ifnull(short_name, ''), ifnull(full_name, '')) <> '' ");
+		db.runCommand(CommandType.CREATE, query.toString());
+		
+		db.runCommand(CommandType.ALTER, "alter table concept_latest_name add primary key composite_id (implementation_id, concept_id)");
+		// Fill in concept dimension data
+		query = new StringBuilder("insert ignore into dim_concept (surrogate_id, implementation_id, concept_id, full_name, short_name, default_name, description, retired, data_type, class, hi_absolute, hi_critical, hi_normal, low_absolute, low_critical, low_normal, creator, date_created, version, changed_by, date_changed, uuid) ");
+		query.append("select c.surrogate_id, c.implementation_id, c.concept_id, cnf.name as full_name, cns.name as short_name, cnd.name as default_name, d.description, c.retired, dt.name as data_type, cl.name as class, cn.hi_absolute, cn.hi_critical, cn.hi_normal, cn.low_absolute, cn.low_critical, cn.low_normal, c.creator, c.date_created, c.version, c.changed_by, c.date_changed, c.uuid from concept as c ");
 		query.append("left outer join concept_datatype as dt on dt.implementation_id = c.implementation_id and dt.concept_datatype_id = c.datatype_id ");
 		query.append("left outer join concept_class as cl on cl.implementation_id = c.implementation_id and cl.concept_class_id = c.class_id ");
-		query.append("left outer join concept_name as n1 on n1.implementation_id = c.implementation_id and n1.concept_id = c.concept_id and n1.locale = 'en' and n1.voided = 0 and n1.concept_name_type = 'FULLY_SPECIFIED' ");
-		query.append("left outer join concept_name as n2 on n2.implementation_id = c.implementation_id and n2.concept_id = c.concept_id and n2.locale = 'en' and n2.voided = 0 and n2.concept_name_type <> 'FULLY_SPECIFIED' ");
+		query.append("inner join concept_latest_name as nm on nm.implementation_id = c.implementation_id and nm.concept_id = c.concept_id ");
+		query.append("left outer join concept_name as cnf on cnf.implementation_id = c.implementation_id and cnf.concept_name_id = nm.full_name ");
+		query.append("left outer join concept_name as cns on cns.implementation_id = c.implementation_id and cns.concept_name_id = nm.short_name ");
+		query.append("left outer join concept_name as cnd on cnd.implementation_id = c.implementation_id and cnd.concept_name_id = nm.default_name ");
 		query.append("left outer join concept_description as d on d.implementation_id = c.implementation_id and d.concept_id = c.concept_id and d.locale = 'en' ");
 		query.append("left outer join concept_numeric as cn on cn.implementation_id = c.implementation_id and cn.concept_id = c.concept_id ");
 		query.append("where c.implementation_id = '" + implementationId + "' ");
@@ -155,11 +171,11 @@ public class DimensionController {
 		log.info("Inserting new concepts to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
 		query = new StringBuilder(
-				"update dim_concept set full_name = 'Yes', concept = 'Yes' where concept_id = 1");
+				"update dim_concept set full_name = 'Yes', short_name = 'Yes', default_name = 'Yes' where concept_id = 1");
 		log.info("Setting names of Yes/No concepts.");
 		db.runCommand(CommandType.UPDATE, query.toString());
 		query = new StringBuilder(
-				"update dim_concept set full_name = 'No', concept = 'No' where concept_id = 2");
+				"update dim_concept set full_name = 'No', short_name = 'No', default_name = 'No' where concept_id = 2");
 		db.runCommand(CommandType.UPDATE, query.toString());
 	}
 
@@ -420,25 +436,87 @@ public class DimensionController {
 	public void encounterAndObsDimension(Date from, Date to, int implementationId) throws InstantiationException,
 			IllegalAccessException, ClassNotFoundException {
 		// Fill the encounter dimension data
+		StringBuilder filter = new StringBuilder(" where e.voided = 0 ");
+		filter.append("and (e.date_created between timestamp('" + DateTimeUtil.getSqlDateTime(from) + "') ");
+		filter.append("and timestamp('" + DateTimeUtil.getSqlDateTime(to) + "')) ");
+		filter.append(" or (e.date_changed between timestamp('" + DateTimeUtil.getSqlDateTime(from) + "') ");
+		filter.append("and timestamp('" + DateTimeUtil.getSqlDateTime(to) + "')) ");
 		StringBuilder query = new StringBuilder(
 				"insert ignore into dim_encounter ");
 		query.append("select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, et.name as encounter_name, et.description, e.patient_id, e.location_id, p.identifier as provider, e.encounter_datetime as date_entered, e.creator, e.date_created as date_start, e.changed_by, e.date_changed, e.date_created as date_end, e.uuid from encounter as e ");
 		query.append("inner join encounter_type as et on et.encounter_type_id = e.encounter_type ");
 		query.append("left outer join encounter_provider as ep on ep.encounter_id = e.encounter_id ");
 		query.append("left outer join provider as p on p.person_id = ep.provider_id ");
-		query.append("where e.voided = 0");
+		query.append(filter.toString());
 		log.info("Inserting new encounters to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
 
 		// Fill the observation dimension data
+		filter = new StringBuilder(" where o.voided = 0 ");
+		filter.append("and (o.date_created between timestamp('" + DateTimeUtil.getSqlDateTime(from) + "') ");
+		filter.append("and timestamp('" + DateTimeUtil.getSqlDateTime(to) + "')) ");
 		query = new StringBuilder("insert ignore into dim_obs ");
-		query.append("select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, e.patient_id, p.identifier, e.provider, o.obs_id, o.concept_id, c.concept as question, obs_datetime, o.location_id, concat(ifnull(o.value_boolean, ''), ifnull(ifnull(c2.concept, c2.full_name), ''), ifnull(o.value_datetime, ''), ifnull(o.value_numeric, ''), ifnull(o.value_text, '')) as answer, o.value_boolean, o.value_coded, o.value_datetime, o.value_numeric, o.value_text, o.creator, o.date_created, o.voided, o.uuid from obs as o ");
+		query.append("select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, e.patient_id, p.patient_identifier, e.provider, o.obs_id, o.concept_id, c.short_name as question, obs_datetime, o.location_id, concat(ifnull(ifnull(ifnull(c2.short_name, c2.default_name), c2.full_name), ''), ifnull(o.value_boolean, ''), ifnull(o.value_datetime, ''), ifnull(o.value_numeric, ''), ifnull(o.value_text, '')) as answer, o.value_boolean, o.value_coded, o.value_datetime, o.value_numeric, o.value_text, o.creator, o.date_created, o.voided, o.uuid from obs as o ");
 		query.append("inner join dim_concept as c on c.implementation_id = o.implementation_id and c.concept_id = o.concept_id ");
 		query.append("inner join dim_encounter as e on e.implementation_id = o.implementation_id and e.encounter_id = o.encounter_id ");
 		query.append("inner join dim_patient as p on p.implementation_id = e.implementation_id and p.patient_id = e.patient_id ");
 		query.append("left outer join dim_concept as c2 on c2.implementation_id = o.implementation_id and c2.concept_id = o.value_coded ");
-		query.append("where o.voided = 0");
+		query.append(filter.toString());
 		log.info("Inserting new observations to dimension.");
 		db.runCommand(CommandType.INSERT, query.toString());
+		deencounterize();
+	}
+
+	// TODO: Create tables against each encounter type
+	public void deencounterize() {
+		// Create a temporary table to save questions for each encounter type
+		db.runCommand(CommandType.DROP, "drop table if exists tmp");
+		db.runCommand(CommandType.CREATE, "create table tmp select distinct encounter_type, concept_id, question from dim_obs");
+		// Fetch encounter types and names
+		Object[][] encounterTypes = db.getTableData("dim_encounter", "distinct encounter_type, encounter_name", null);
+		if (encounterTypes == null) {
+			log.severe("Encounter types could not be fetched");
+			return;
+		}
+		for (Object[] encounterType : encounterTypes) {
+			StringBuilder query = new StringBuilder();
+			// Create a de-encounterized table
+			Object[][] data = db.getTableData("tmp", "question", "encounter_type=" + encounterType[0].toString());
+			ArrayList<String> elements = new ArrayList<String>();
+			for (int i = 0; i < data.length; i++) {
+				if (data[i][0] == null) {
+					continue;
+				}
+				elements.add(data[i][0].toString());
+			}
+			StringBuilder groupConcat = new StringBuilder();
+			for (Object element : elements) {
+				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_")
+						.toLowerCase();
+				groupConcat.append("group_concat(if(o.question = '" + element
+						+ "', o.answer, NULL)) AS " + str + ", ");
+			}
+			String encounterName = encounterType[1].toString().toLowerCase()
+					.replace(" ", "_").replace("-", "_");
+			query.append("create table enc_" + encounterName + " ");
+			query.append("select e.surrogate_id, e.implementation_id, e.encounter_id,  e.provider, e.location_id, l.location_name, e.patient_id, e.date_entered, ");
+			query.append(groupConcat.toString());
+			query.append("'' as BLANK from dim_encounter as e ");
+			query.append("inner join dim_obs as o on o.encounter_id = e.encounter_id and o.voided = 0 ");
+			query.append("inner join dim_location as l on l.location_id = e.location_id ");
+			query.append("where e.encounter_type = '" + encounterType[0].toString() + "' ");
+			query.append("group by e.surrogate_id, e.implementation_id, e.encounter_id, e.patient_id, e.provider, e.location_id, l.location_name, e.patient_id, e.date_entered");
+			// Drop previous table
+			db.runCommand(CommandType.DROP, "drop table if exists enc_"
+					+ encounterName);
+			log.info("Generating table for " + encounterType[1].toString());
+			// Insert new data
+			Object result = db.runCommand(CommandType.CREATE, query.toString());
+			if (result == null) {
+				log.warning("No data imported for Encounter " + encounterType[1].toString());
+			}
+			// Creating Primary key
+			db.runCommand(CommandType.ALTER, "alter table enc_" + encounterName + " add primary key surrogate_id (surrogate_id)");
+		}
 	}
 }

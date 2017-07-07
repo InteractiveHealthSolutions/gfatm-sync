@@ -11,9 +11,9 @@ Interactive Health Solutions, hereby disclaims all copyright interest in this pr
  */
 package com.ihsinformatics.gfatmimport;
 
+import java.sql.SQLException;
 import java.util.logging.Logger;
 
-import com.ihsinformatics.util.CommandType;
 import com.ihsinformatics.util.DatabaseUtil;
 
 /**
@@ -23,68 +23,21 @@ import com.ihsinformatics.util.DatabaseUtil;
 public class FactController {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
+	private static final String factQueriesFile = "res/fact_queries.sql";
 	private DatabaseUtil db;
+
+	public static void main(String[] args) {
+		DatabaseUtil myDb = new DatabaseUtil();
+		myDb.setConnection(
+				"jdbc:mysql://127.0.0.1:3306/gfatm_dw?autoReconnect=true&useSSL=false",
+				"gfatm_dw", "com.mysql.jdbc.Driver", "root", "jingle94");
+		myDb.tryConnection();
+		FactController fc = new FactController(myDb);
+		fc.modelFacts();
+	}
 
 	public FactController(DatabaseUtil db) {
 		this.db = db;
-	}
-
-	/**
-	 * Create user facts
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 */
-	public void userFacts() throws InstantiationException,
-			IllegalAccessException, ClassNotFoundException {
-		StringBuilder query = new StringBuilder("insert ignore into fact_user ");
-		query.append("select u.implementation_id, t.*, count(*) users from dim_user as u ");
-		query.append("inner join dim_datetime as t on date(t.full_date) = date(u.date_created) ");
-		query.append("group by u.implementation_id, t.datetime_id ");
-		log.info("Inserting concept facts");
-		db.runCommand(CommandType.INSERT, query.toString());
-	}
-
-	/**
-	 * Create facts about concepts
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 */
-	public void conceptFacts() throws InstantiationException,
-			IllegalAccessException, ClassNotFoundException {
-		StringBuilder query = new StringBuilder(
-				"insert ignore into fact_concept ");
-		query.append("select c.implementation_id, ");
-		query.append("(select count(*) from dim_concept where implementation_id = c.implementation_id and retired = 0) as active, ");
-		query.append("(select count(*) from dim_concept where implementation_id = c.implementation_id and data_type in ('Numeric','Boolean','Date','Time','Datetime')) as real_valued, ");
-		query.append("(select count(*) from dim_concept where implementation_id = c.implementation_id and data_type in ('N/A','Text')) as open_text, ");
-		query.append("(select count(*) from dim_concept where implementation_id = c.implementation_id and data_type = 'Coded') as coded, ");
-		query.append("(select count(DISTINCT uuid) from dim_concept) as unique_concepts, ");
-		query.append("count(*) as total from dim_concept as c ");
-		query.append("group by c.implementation_id ");
-		log.info("Inserting concept facts");
-		db.runCommand(CommandType.INSERT, query.toString());
-	}
-
-	/**
-	 * Create location facts
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 */
-	public void locationFacts() throws InstantiationException,
-			IllegalAccessException, ClassNotFoundException {
-		StringBuilder query = new StringBuilder(
-				"insert ignore into fact_location ");
-		query.append("select l.implementation_id, t.*, count(*) as total from dim_location as l ");
-		query.append("inner join dim_datetime as t on date(t.full_date) = date(l.date_created) ");
-		query.append("group by l.implementation_id, t.datetime_id ");
-		log.info("Inserting location facts");
-		db.runCommand(CommandType.INSERT, query.toString());
 	}
 
 	/**
@@ -93,19 +46,12 @@ public class FactController {
 	public void modelFacts() {
 		try {
 			log.info("Starting fact modeling");
-			userFacts();
-			conceptFacts();
-			locationFacts();
-
-			// TODO: Add more facts
-
-			log.info("Finished fact modeling");
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
+			SqlExecuteUtil sqlUtil = new SqlExecuteUtil(db.getUrl(),
+					db.getDriverName(), db.getUsername(), db.getPassword());
+			sqlUtil.execute(factQueriesFile);
+		} catch (SQLException e) {
 			e.printStackTrace();
 		}
+		log.info("Finished fact modeling");
 	}
 }

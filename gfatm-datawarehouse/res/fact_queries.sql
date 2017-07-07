@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS fact_concept;
+DROP TABLE IF EXISTS fact_encounter;
+DROP TABLE IF EXISTS fact_location;
+DROP TABLE IF EXISTS fact_patient;
+DROP TABLE IF EXISTS fact_user;
+
+CREATE TABLE fact_concept SELECT c.implementation_id, (SELECT COUNT(*) FROM dim_concept WHERE implementation_id = c.implementation_id AND retired = 0) AS active, (SELECT COUNT(*) FROM dim_concept WHERE implementation_id = c.implementation_id AND data_type IN ('Numeric','Boolean','Date','Time','Datetime')) AS real_valued, (SELECT COUNT(*) FROM dim_concept WHERE implementation_id = c.implementation_id AND data_type IN ('N/A','Text')) AS open_text, (SELECT COUNT(*) FROM dim_concept WHERE implementation_id = c.implementation_id AND data_type = 'Coded') AS coded, (SELECT COUNT(DISTINCT uuid) FROM dim_concept) AS unique_concepts, COUNT(*) AS total FROM dim_concept AS c GROUP BY c.implementation_id;
+CREATE TABLE fact_encounter SELECT e.implementation_id, t.datetime_id, e.encounter_type, e.location_id, SUM(IF(e.encounter_name LIKE 'FAST%', 1, 0)) AS fast_total, SUM(IF(e.encounter_name LIKE 'PET%', 1, 0)) AS pet_total, SUM(IF(e.encounter_name LIKE 'Comorbidities%', 1, 0)) AS comorbidities_total, SUM(IF(e.encounter_name LIKE 'Childhood TB%', 1, 0)) AS childhoodtb_total, SUM(IF(e.encounter_name LIKE 'PMDT%', 1, 0)) AS pmdt_total, COUNT(*) as total FROM dim_encounter AS e INNER JOIN dim_datetime AS t ON DATE(t.full_date) = DATE(e.date_entered) GROUP BY e.implementation_id, t.datetime_id, e.encounter_type, e.location_id;
+CREATE TABLE fact_location SELECT l.implementation_id, t.*, COUNT(*) AS total FROM dim_location AS l INNER JOIN dim_datetime AS t ON DATE(t.full_date) = DATE(l.date_created) GROUP BY l.implementation_id, t.datetime_id;
+CREATE TABLE fact_patient SELECT t.datetime_id, SUM(IF(p.gender = 'M', 1, 0)) AS male, SUM(IF(p.gender = 'F', 1, 0)) AS female, SUM(IF(p.dead = 1, 1, 0)) AS died, COUNT(*) AS total FROM dim_patient AS p INNER JOIN dim_datetime AS t ON DATE(t.full_date) = DATE(p.date_created) GROUP BY t.datetime_id;
+CREATE TABLE fact_user SELECT u.implementation_id, t.datetime_id, COUNT(*) users FROM dim_user AS u INNER JOIN dim_datetime AS t ON DATE(t.full_date) = DATE(u.date_created) GROUP BY u.implementation_id, t.datetime_id;

@@ -38,7 +38,6 @@ public class GfatmDataWarehouseMain {
 	private Properties props;
 	private String dataPath;
 	private String dwSchema;
-	private Boolean includeMetadata = true;
 
 	private GfatmDataWarehouseMain() {
 		dataPath = System.getProperty("user.home") + File.separatorChar;
@@ -130,8 +129,6 @@ public class GfatmDataWarehouseMain {
 				localDb.setConnection(url, dwSchema, driverName, username,
 						password);
 				System.out.println(localDb.tryConnection());
-				includeMetadata = props.getProperty("local.include_metadata",
-						"true").equalsIgnoreCase("true");
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

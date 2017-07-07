@@ -17,6 +17,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.logging.Logger;
 
@@ -80,8 +81,10 @@ public class ImportController {
 			// Import data from this connection into data warehouse
 			try {
 				// Update status of implementation record
-				// TODO: Enable on production
-				// localDb.updateRecord("_implementation", new String[] {"status"}, new String[] {"RUNNING"}, "implementation_id='" + implementationId + "'");
+				/* Enable on production */
+				localDb.updateRecord("_implementation",
+						new String[] { "status" }, new String[] { "RUNNING" },
+						"implementation_id='" + implementationId + "'");
 				clearTempTables(implementationId);
 				importPeopleData(remoteDb, implementationId);
 				importUserData(remoteDb, implementationId);
@@ -1106,7 +1109,8 @@ public class ImportController {
 					remoteDb.getConnection(), localDb.getConnection());
 			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
-					+ tableName + " AS t WHERE concept_id NOT IN (SELECT concept_id FROM "
+					+ tableName
+					+ " AS t WHERE concept_id NOT IN (SELECT concept_id FROM "
 					+ tableName
 					+ " WHERE implementation_id = t.implementation_id)";
 			localDb.runCommand(CommandType.INSERT, insertQuery);
@@ -1422,47 +1426,45 @@ public class ImportController {
 			// Observation data is too much to handle in single query, so import
 			// in batches
 			tableName = "obs";
-			int from = 1, to = 0;
-			int batchSize = 500;
-			int rows = (int) remoteDb.getTotalRows(tableName,
-					filter("date_created", null));
-			log.info("Inserting data from " + database + "." + tableName
-					+ " into data warehouse");
-			while (from <= rows) {
-				to = (from + batchSize) > rows ? rows : (from + batchSize);
-				String limitClause = "LIMIT " + from + ", " + to;
-				from += batchSize;
+			// Get all unique dates from within the date range
+			Object[][] dateData = remoteDb.getTableData(tableName,
+					"DATE(date_created)", filter("date_created", null), true);
+			ArrayList<String> dates = new ArrayList<String>();
+			for (Object[] date : dateData) {
+				dates.add(date[0].toString());
+			}
+			for (String date : dates) {
+				log.info("Inserting data from " + database + "." + tableName
+						+ " into data warehouse for date " + date);
 				insertQuery = "INSERT INTO tmp_"
 						+ tableName
 						+ " (surrogate_id, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_boolean, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 				selectQuery = "SELECT 0,'"
 						+ implementationId
 						+ "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_boolean, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM "
-						+ database + "." + tableName + " AS t "
-						+ filter("t.date_created", null) + limitClause + " ";
+						+ database + "." + tableName
+						+ " AS t WHERE DATE(t.date_created) = '" + date + "'";
 				remoteSelectInsert(selectQuery, insertQuery,
 						remoteDb.getConnection(), localDb.getConnection());
-				// Insert new records
-				insertQuery = "INSERT INTO "
-						+ tableName
-						+ " SELECT * FROM tmp_"
-						+ tableName
-						+ " AS t WHERE NOT EXISTS (SELECT * FROM "
-						+ tableName
-						+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
-				localDb.runCommand(CommandType.INSERT, insertQuery);
-				// Update the existing records
-				updateQuery = "UPDATE "
-						+ tableName
-						+ " AS a, tmp_"
-						+ tableName
-						+ " AS t SET a.obs_id=t.obs_id,a.person_id=t.person_id,a.concept_id=t.concept_id,a.encounter_id=t.encounter_id,a.order_id=t.order_id,a.obs_datetime=t.obs_datetime,a.location_id=t.location_id,a.obs_group_id=t.obs_group_id,a.accession_number=t.accession_number,a.value_group_id=t.value_group_id,a.value_boolean=t.value_boolean,a.value_coded=t.value_coded,a.value_coded_name_id=t.value_coded_name_id,a.value_drug=t.value_drug,a.value_datetime=t.value_datetime,a.value_numeric=t.value_numeric,a.value_modifier=t.value_modifier,a.value_text =t.value_text ,a.value_complex=t.value_complex,a.comments=t.comments,a.creator=t.creator,a.date_created=t.date_created,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.previous_version=t.previous_version WHERE a.implementation_id = t.implementation_id = '"
-						+ implementationId + "' AND a.uuid = t.uuid";
-				localDb.runCommand(CommandType.UPDATE, updateQuery);
-			}
 
-			// TODO: Handle tables visit_type, visit, visit_attribute_type,
-			// visit_attribute, form, field, form_field, field_type
+			}
+			// Insert new records
+			insertQuery = "INSERT INTO "
+					+ tableName
+					+ " SELECT * FROM tmp_"
+					+ tableName
+					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
+					+ tableName
+					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			localDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE "
+					+ tableName
+					+ " AS a, tmp_"
+					+ tableName
+					+ " AS t SET a.obs_id=t.obs_id,a.person_id=t.person_id,a.concept_id=t.concept_id,a.encounter_id=t.encounter_id,a.order_id=t.order_id,a.obs_datetime=t.obs_datetime,a.location_id=t.location_id,a.obs_group_id=t.obs_group_id,a.accession_number=t.accession_number,a.value_group_id=t.value_group_id,a.value_boolean=t.value_boolean,a.value_coded=t.value_coded,a.value_coded_name_id=t.value_coded_name_id,a.value_drug=t.value_drug,a.value_datetime=t.value_datetime,a.value_numeric=t.value_numeric,a.value_modifier=t.value_modifier,a.value_text =t.value_text ,a.value_complex=t.value_complex,a.comments=t.comments,a.creator=t.creator,a.date_created=t.date_created,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.previous_version=t.previous_version WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			localDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

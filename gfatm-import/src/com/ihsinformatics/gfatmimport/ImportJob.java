@@ -314,7 +314,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "location");
 		insertQuery = "INSERT INTO temp_location(location_id,name,description,address1,address2,city_village,state_province,postal_code,country,latitude,longitude,creator,date_created,county_district,address3,address4,address5,address6,retired,retired_by,date_retired,retire_reason,parent_location,uuid,changed_by,date_changed)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT location_id,name,description,address1,address2,city_village,state_province,postal_code,country,latitude,longitude,creator,date_created,county_district,address3,address4,address5,address6,retired,retired_by,date_retired,retire_reason,parent_location,uuid,changed_by,date_changed FROM location "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO location(location_id,name,description,address1,address2,city_village,state_province,postal_code,country,latitude,longitude,creator,date_created,county_district,address3,address4,address5,address6,retired,retired_by,date_retired,retire_reason,parent_location,uuid,changed_by,date_changed) SELECT location_id,name,description,address1,address2,city_village,state_province,postal_code,country,latitude,longitude,creator,date_created,county_district,address3,address4,address5,address6,retired,retired_by,date_retired,retire_reason,parent_location,uuid,changed_by,date_changed FROM temp_location";
 		localInsert(insertQuery);
@@ -323,7 +323,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "location_attribute_type");
 		insertQuery = "INSERT INTO temp_location_attribute_type(location_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT location_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM location_attribute_type "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO location_attribute_type(location_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT location_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_location_attribute_type";
 		localInsert(insertQuery);
@@ -332,7 +332,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "location_attribute");
 		insertQuery = "INSERT INTO temp_location_attribute(location_attribute_id,location_id,attribute_type_id,value_reference,uuid,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT location_attribute_id,location_id,attribute_type_id,value_reference,uuid,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason FROM location_attribute "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO location_attribute(location_attribute_id,location_id,attribute_type_id,value_reference,uuid,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason) SELECT location_attribute_id,location_id,attribute_type_id,value_reference,uuid,creator,date_created,changed_by,date_changed,voided,voided_by,date_voided,void_reason FROM temp_location_attribute";
 		localInsert(insertQuery);
@@ -341,7 +341,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "location_tag");
 		insertQuery = "INSERT INTO temp_location_tag(location_tag_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,changed_by,date_changed)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT location_tag_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,changed_by,date_changed FROM location_tag "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO location_tag(location_tag_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,changed_by,date_changed) SELECT location_tag_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,changed_by,date_changed FROM temp_location_tag";
 		localInsert(insertQuery);
@@ -434,7 +434,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "concept");
 		insertQuery = "INSERT INTO temp_concept(concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid FROM concept "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO concept(concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid) SELECT concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid FROM temp_concept";
 		localInsert(insertQuery);
@@ -452,7 +452,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "concept_description");
 		insertQuery = "INSERT INTO temp_concept_description(concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid)VALUES(?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid FROM concept_description "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO concept_description(concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid) SELECT concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid FROM temp_concept_description";
 		localInsert(insertQuery);
@@ -508,7 +508,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "encounter_role");
 		insertQuery = "INSERT INTO temp_encounter_role(encounter_role_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT encounter_role_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM encounter_role "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO encounter_role(encounter_role_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT encounter_role_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_encounter_role";
 		localInsert(insertQuery);
@@ -553,7 +553,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "form");
 		insertQuery = "INSERT INTO temp_form(form_id,name,version,build,published,xslt,template,description,encounter_type,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retired_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT form_id,name,version,build,published,xslt,template,description,encounter_type,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retired_reason,uuid FROM form "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO form(form_id,name,version,build,published,xslt,template,description,encounter_type,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retired_reason,uuid) SELECT form_id,name,version,build,published,xslt,template,description,encounter_type,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retired_reason,uuid FROM temp_form";
 		localInsert(insertQuery);
@@ -570,7 +570,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "form_field");
 		insertQuery = "INSERT INTO temp_form_field(form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid FROM form_field "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO form_field(form_field_id,orm_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid) SELECT form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid FROM temp_form_field";
 		localInsert(insertQuery);
@@ -588,7 +588,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "htmlformentry_html_form");
 		insertQuery = "INSERT INTO temp_htmlformentry_html_form(id,form_id,name,xml_data,creator,date_created,changed_by,date_changed,retired,uuid,description,retired_by,date_retired,retire_reason)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT id,form_id,name,xml_data,creator,date_created,changed_by,date_changed,retired,uuid,description,retired_by,date_retired,retire_reason FROM htmlformentry_html_form "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO htmlformentry_html_form(id,form_id,name,xml_data,creator,date_created,changed_by,date_changed,retired,uuid,description,retired_by,date_retired,retire_reason) SELECT id,form_id,name,xml_data,creator,date_created,changed_by,date_changed,retired,uuid,description,retired_by,date_retired,retire_reason FROM temp_htmlformentry_html_form";
 		localInsert(insertQuery);
@@ -606,7 +606,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "person_attribute_type");
 		insertQuery = "INSERT INTO temp_person_attribute_type(person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid FROM person_attribute_type "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO person_attribute_type(person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid) SELECT person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid FROM temp_person_attribute_type";
 		localInsert(insertQuery);
@@ -615,7 +615,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "program");
 		insertQuery = "INSERT INTO temp_program (program_id,concept_id,outcomes_concept_id,creator,date_created,changed_by,date_changed,retired,name,description,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT program_id,concept_id,outcomes_concept_id,creator,date_created,changed_by,date_changed,retired,name,description,uuid FROM program "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO program (program_id,concept_id,outcomes_concept_id,creator,date_created,changed_by,date_changed,retired,name,description,uuid) SELECT program_id,concept_id,outcomes_concept_id,creator,date_created,changed_by,date_changed,retired,name,description,uuid FROM temp_program";
 		localInsert(insertQuery);
@@ -642,7 +642,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "order_type");
 		insertQuery = "INSERT INTO temp_order_type(order_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,java_class_name,parent,changed_by,date_changed)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT order_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,java_class_name,parent,changed_by,date_changed FROM order_type "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO order_type(order_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,java_class_name,parent,changed_by,date_changed) SELECT order_type_id,name,description,creator,date_created,retired,retired_by,date_retired,retire_reason,uuid,java_class_name,parent,changed_by,date_changed FROM temp_order_type";
 		localInsert(insertQuery);
@@ -651,7 +651,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "scheduler_task_config");
 		insertQuery = "INSERT INTO temp_scheduler_task_config(task_config_id,name,description,schedulable_class,start_time,start_time_pattern,repeat_interval,start_on_startup,started,created_by,date_created,changed_by,date_changed,last_execution_time,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT task_config_id,name,description,schedulable_class,start_time,start_time_pattern,repeat_interval,start_on_startup,started,created_by,date_created,changed_by,date_changed,last_execution_time,uuid FROM scheduler_task_config "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO scheduler_task_config(task_config_id,name,description,schedulable_class,start_time,start_time_pattern,repeat_interval,start_on_startup,started,created_by,date_created,changed_by,date_changed,last_execution_time,uuid) SELECT task_config_id,name,description,schedulable_class,start_time,start_time_pattern,repeat_interval,start_on_startup,started,created_by,date_created,changed_by,date_changed,last_execution_time,uuid FROM temp_scheduler_task_config";
 		localInsert(insertQuery);
@@ -668,7 +668,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "visit_type");
 		insertQuery = "INSERT INTO temp_visit_type(visit_type_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT visit_type_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM visit_type "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO visit_type(visit_type_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT visit_type_id,name,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_visit_type";
 		localInsert(insertQuery);
@@ -677,7 +677,7 @@ public class ImportJob implements Job {
 		createTempTable(getLocalDb(), "visit_attribute_type");
 		insertQuery = "INSERT INTO temp_visit_attribute_type(visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		selectQuery = "SELECT visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM visit_attribute_type "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO visit_attribute_type(visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_visit_attribute_type";
 		localInsert(insertQuery);

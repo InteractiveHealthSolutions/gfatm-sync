@@ -1,6 +1,8 @@
 package com.ihsinformatics.gfatmimport;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.URL;
 import java.sql.SQLException;
 
 import org.apache.tools.ant.Project;
@@ -27,7 +29,8 @@ public class SqlExecuteUtil extends SQLExec {
 	 * @param filePath
 	 */
 	public void execute(String filePath) {
-		setSrc(new File(filePath));
+		String resource = Thread.currentThread().getContextClassLoader().getResource(filePath).getFile();
+		setSrc(new File(resource));
 		execute();
 	}
 }

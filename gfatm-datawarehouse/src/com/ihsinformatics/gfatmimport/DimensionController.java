@@ -55,24 +55,43 @@ public class DimensionController {
 	}
 
 	public void modelDimensions(Date from, Date to, int implementationId) {
+		log.info("Starting dimension modeling");
 		try {
-			log.info("Starting dimension modeling");
 			timeDimension();
-			conceptDimension(from, to, implementationId);
-			locationDimension(from, to, implementationId);
-			userDimension(from, to, implementationId);
-			patientDimension(from, to, implementationId);
-			encounterAndObsDimension(from, to, implementationId);
-			log.info("Finished dimension modeling");
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		try {
+			conceptDimension(from, to, implementationId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			locationDimension(from, to, implementationId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			userDimension(from, to, implementationId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			userDimension(from, to, implementationId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			patientDimension(from, to, implementationId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			encounterAndObsDimension(from, to, implementationId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		log.info("Finished dimension modeling");
 	}
 
 	/**

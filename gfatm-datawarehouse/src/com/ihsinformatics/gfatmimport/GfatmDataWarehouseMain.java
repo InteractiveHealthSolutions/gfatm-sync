@@ -12,7 +12,6 @@ Interactive Health Solutions, hereby disclaims all copyright interest in this pr
 package com.ihsinformatics.gfatmimport;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
@@ -29,11 +28,11 @@ import com.ihsinformatics.util.VersionUtil;
 public class GfatmDataWarehouseMain {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
-	private static final String createWarehouseFile = "res/create_datawarehouse.sql";
-	private static final String destroyWarehouseFile = "res/destroy_datawarehouse.sql";
+	private static final String createWarehouseFile = "create_datawarehouse.sql";
+	private static final String destroyWarehouseFile = "destroy_datawarehouse.sql";
 	private static final VersionUtil version = new VersionUtil(true, false,
 			false, 0, 1, 1);
-	private static String propertiesFile = "res/gfatm-sync.properties";
+	private static String propertiesFile = "gfatm-sync.properties";
 	private DatabaseUtil localDb;
 	private Properties props;
 	private String dataPath;
@@ -69,17 +68,17 @@ public class GfatmDataWarehouseMain {
 			return;
 		}
 		System.out.println(version.toString());
-		boolean doReset = false, doCreateDw = false, doUpdateDw = false;
+		boolean doReset = false, doUpdateDw = false;
 		for (int i = 0; i < args.length; i++) {
 			if (args[i].equals("-p")) {
 				propertiesFile = args[i + 1];
 			} else if (args[i].equalsIgnoreCase("-r")) {
-				doReset = doCreateDw = true;
+				doReset = true;
 			} else if (args[i].equalsIgnoreCase("-u")) {
 				doUpdateDw = true;
 			}
 		}
-		if (!(doReset | doCreateDw | doUpdateDw)) {
+		if (!(doReset | doUpdateDw)) {
 			System.out.println("No valid parameters are defined. Exiting");
 			System.exit(-1);
 		}
@@ -93,14 +92,12 @@ public class GfatmDataWarehouseMain {
 			}
 			gfatm.createDatawarehouse();
 			importController.importData();
-			if (doCreateDw) {
-				DimensionController dimController = new DimensionController(
-						gfatm.localDb);
-				dimController.modelDimensions();
-				FactController factController = new FactController(
-						gfatm.localDb);
-				factController.modelFacts();
-			}
+			DimensionController dimController = new DimensionController(
+					gfatm.localDb);
+			dimController.modelDimensions();
+			FactController factController = new FactController(
+					gfatm.localDb);
+			factController.modelFacts();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -112,7 +109,7 @@ public class GfatmDataWarehouseMain {
 	 */
 	public void readProperties(String propertiesFile) {
 		try {
-			InputStream propFile = new FileInputStream(propertiesFile);
+			InputStream propFile = Thread.currentThread().getContextClassLoader().getResourceAsStream(propertiesFile);
 			if (propFile != null) {
 				props.load(propFile);
 				String url = props.getProperty("local.connection.url",

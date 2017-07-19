@@ -23,7 +23,7 @@ import com.ihsinformatics.util.DatabaseUtil;
 public class FactController {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
-	private static final String factQueriesFile = "res/fact_queries.sql";
+	private static final String factQueriesFile = "fact_queries.sql";
 	private DatabaseUtil db;
 
 	public static void main(String[] args) {

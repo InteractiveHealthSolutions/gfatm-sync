@@ -27,133 +27,135 @@ import com.ihsinformatics.util.VersionUtil;
  */
 public class GfatmDataWarehouseMain {
 
-	private static final Logger log = Logger.getLogger(Class.class.getName());
-	private static final String createWarehouseFile = "create_datawarehouse.sql";
-	private static final String destroyWarehouseFile = "destroy_datawarehouse.sql";
-	private static final VersionUtil version = new VersionUtil(true, false,
-			false, 0, 1, 1);
-	private static String propertiesFile = "gfatm-sync.properties";
-	private DatabaseUtil localDb;
-	private Properties props;
-	private String dataPath;
-	private String dwSchema;
+    private static final Logger log = Logger.getLogger(Class.class.getName());
+    public static String resourcePath = System.getProperty("user.home")
+	    + File.separatorChar + "gfatm" + File.separatorChar;
+    private static final String createWarehouseFile = "create_datawarehouse.sql";
+    private static final String destroyWarehouseFile = "destroy_datawarehouse.sql";
+    private static final VersionUtil version = new VersionUtil(true, false,
+	    false, 0, 1, 1);
+    private static String propertiesFileName = "gfatm-sync.properties";
+    private DatabaseUtil localDb;
+    private Properties props;
+    private String dwSchema;
 
-	private GfatmDataWarehouseMain() {
-		dataPath = System.getProperty("user.home") + File.separatorChar;
-		localDb = new DatabaseUtil();
-		props = new Properties();
-		// Create data directory if not
-		File file = new File(dataPath + File.separatorChar + dwSchema);
-		if (!(file.exists() && file.isDirectory())) {
-			file.mkdir();
-			file.setWritable(true, false);
-		}
+    private GfatmDataWarehouseMain() {
+	localDb = new DatabaseUtil();
+	props = new Properties();
+    }
+
+    /**
+     * @param args
+     */
+    public static void main(String[] args) {
+
+	// Check arguments first
+	if (args[0] == null || args.length == 0) {
+	    System.out
+		    .println("Arguments are invalid. Arguments must be provided as:");
+	    System.out.println("-p path to resource directory");
+	    System.out
+		    .println("-r to hard reset warehouse (Extract/Load > Transform > Dimensional modeling > Fact tables)");
+	    System.out
+		    .println("-d to create data warehouse dimentions and facts");
+	    System.out.println("-u to update data warehouse (nightly run)");
+	    return;
 	}
-
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
-
-		// Check arguments first
-		if (args[0] == null || args.length == 0) {
-			System.out
-					.println("Arguments are invalid. Arguments must be provided as:");
-			System.out.println("-p path to properties file");
-			System.out
-					.println("-r to hard reset warehouse (Extract/Load > Transform > Dimensional modeling > Fact tables)");
-			System.out
-					.println("-d to create data warehouse dimentions and facts");
-			System.out.println("-u to update data warehouse (nightly run)");
-			return;
+	System.out.println(version.toString());
+	boolean doReset = false, doUpdateDw = false;
+	for (int i = 0; i < args.length; i++) {
+	    if (args[i].equals("-p")) {
+		resourcePath = args[i + 1];
+		if (!resourcePath.endsWith(String.valueOf(File.separatorChar))) {
+		    resourcePath += String.valueOf(File.separatorChar);
 		}
-		System.out.println(version.toString());
-		boolean doReset = false, doUpdateDw = false;
-		for (int i = 0; i < args.length; i++) {
-			if (args[i].equals("-p")) {
-				propertiesFile = args[i + 1];
-			} else if (args[i].equalsIgnoreCase("-r")) {
-				doReset = true;
-			} else if (args[i].equalsIgnoreCase("-u")) {
-				doUpdateDw = true;
-			}
-		}
-		if (!(doReset | doUpdateDw)) {
-			System.out.println("No valid parameters are defined. Exiting");
-			System.exit(-1);
-		}
-		// Read properties file
-		GfatmDataWarehouseMain gfatm = new GfatmDataWarehouseMain();
-		gfatm.readProperties(propertiesFile);
-		ImportController importController = new ImportController(gfatm.localDb);
-		try {
-			if (doReset) {
-				gfatm.destroyDatawarehouse();
-			}
-			gfatm.createDatawarehouse();
-			importController.importData();
-			DimensionController dimController = new DimensionController(
-					gfatm.localDb);
-			dimController.modelDimensions();
-			FactController factController = new FactController(
-					gfatm.localDb);
-			factController.modelFacts();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		System.exit(0);
+	    } else if (args[i].equalsIgnoreCase("-r")) {
+		doReset = true;
+	    } else if (args[i].equalsIgnoreCase("-u")) {
+		doUpdateDw = true;
+	    }
 	}
-
-	/**
-	 * Read properties from properties file
-	 */
-	public void readProperties(String propertiesFile) {
-		try {
-			InputStream propFile = Thread.currentThread().getContextClassLoader().getResourceAsStream(propertiesFile);
-			if (propFile != null) {
-				props.load(propFile);
-				String url = props.getProperty("local.connection.url",
-						"jdbc:mysql://localhost:3306/gfatm_dw");
-				String driverName = props.getProperty(
-						"local.connection.driver_class",
-						"com.mysql.jdbc.Driver");
-				dwSchema = props.getProperty("local.connection.database",
-						"gfatm_dw");
-				String username = props.getProperty(
-						"local.connection.username", "root");
-				String password = props
-						.getProperty("local.connection.password");
-				localDb.setConnection(url, dwSchema, driverName, username,
-						password);
-				System.out.println(localDb.tryConnection());
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-			log.severe("Properties file not found in class path.");
-		}
+	if (!(doReset | doUpdateDw)) {
+	    System.out.println("No valid parameters are defined. Exiting");
+	    System.exit(-1);
 	}
-
-	/**
-	 * Delete all data warehouse tables
-	 */
-	public void destroyDatawarehouse() {
-		try {
-			SqlExecuteUtil sqlUtil = new SqlExecuteUtil(localDb.getUrl(), localDb.getDriverName(), localDb.getUsername(), localDb.getPassword());
-			sqlUtil.execute(destroyWarehouseFile);
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+	// Read properties file
+	GfatmDataWarehouseMain gfatm = new GfatmDataWarehouseMain();
+	gfatm.readProperties(propertiesFileName);
+	ImportController importController = new ImportController(gfatm.localDb);
+	try {
+	    if (doReset) {
+		gfatm.destroyDatawarehouse();
+	    }
+	    gfatm.createDatawarehouse();
+	    importController.importData();
+	    DimensionController dimController = new DimensionController(
+		    gfatm.localDb);
+	    dimController.modelDimensions();
+	    FactController factController = new FactController(gfatm.localDb);
+	    factController.modelFacts();
+	} catch (Exception e) {
+	    e.printStackTrace();
 	}
+	System.exit(0);
+    }
 
-	/**
-	 * Create all tables from SQL script
-	 */
-	public void createDatawarehouse() {
-		try {
-			SqlExecuteUtil sqlUtil = new SqlExecuteUtil(localDb.getUrl(), localDb.getDriverName(), localDb.getUsername(), localDb.getPassword());
-			sqlUtil.execute(createWarehouseFile);
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+    /**
+     * Read properties from properties file
+     */
+    public void readProperties(String propertiesFile) {
+	try {
+	    InputStream propFile = Thread.currentThread()
+		    .getContextClassLoader()
+		    .getResourceAsStream(propertiesFile);
+	    if (propFile != null) {
+		props.load(propFile);
+		String url = props.getProperty("local.connection.url",
+			"jdbc:mysql://localhost:3306/gfatm_dw");
+		String driverName = props.getProperty(
+			"local.connection.driver_class",
+			"com.mysql.jdbc.Driver");
+		dwSchema = props.getProperty("local.connection.database",
+			"gfatm_dw");
+		String username = props.getProperty(
+			"local.connection.username", "root");
+		String password = props
+			.getProperty("local.connection.password");
+		localDb.setConnection(url, dwSchema, driverName, username,
+			password);
+		System.out.println(localDb.tryConnection());
+	    }
+	} catch (IOException e) {
+	    e.printStackTrace();
+	    log.severe("Properties file not found in class path.");
 	}
+    }
+
+    /**
+     * Delete all data warehouse tables
+     */
+    public void destroyDatawarehouse() {
+	try {
+	    SqlExecuteUtil sqlUtil = new SqlExecuteUtil(localDb.getUrl(),
+		    localDb.getDriverName(), localDb.getUsername(),
+		    localDb.getPassword());
+	    sqlUtil.execute(resourcePath + destroyWarehouseFile);
+	} catch (SQLException e) {
+	    e.printStackTrace();
+	}
+    }
+
+    /**
+     * Create all tables from SQL script
+     */
+    public void createDatawarehouse() {
+	try {
+	    SqlExecuteUtil sqlUtil = new SqlExecuteUtil(localDb.getUrl(),
+		    localDb.getDriverName(), localDb.getUsername(),
+		    localDb.getPassword());
+	    sqlUtil.execute(resourcePath + createWarehouseFile);
+	} catch (SQLException e) {
+	    e.printStackTrace();
+	}
+    }
 }

@@ -62,7 +62,7 @@ public class GfatmDataWarehouseMain {
 	    return;
 	}
 	System.out.println(version.toString());
-	boolean doReset = false, doUpdateDw = false;
+	boolean doReset = false, doUpdate = false;
 	for (int i = 0; i < args.length; i++) {
 	    if (args[i].equals("-p")) {
 		resourcePath = args[i + 1];
@@ -72,10 +72,10 @@ public class GfatmDataWarehouseMain {
 	    } else if (args[i].equalsIgnoreCase("-r")) {
 		doReset = true;
 	    } else if (args[i].equalsIgnoreCase("-u")) {
-		doUpdateDw = true;
+		doUpdate = true;
 	    }
 	}
-	if (!(doReset | doUpdateDw)) {
+	if (!(doReset | doUpdate)) {
 	    System.out.println("No valid parameters are defined. Exiting");
 	    System.exit(-1);
 	}
@@ -86,11 +86,13 @@ public class GfatmDataWarehouseMain {
 	try {
 	    if (doReset) {
 		gfatm.destroyDatawarehouse();
+		gfatm.createDatawarehouse();
+		importController.importData();
+	    } else if (doUpdate) {
+		gfatm.createDatawarehouse();
+		importController.importData();
 	    }
-	    gfatm.createDatawarehouse();
-	    importController.importData();
-	    DimensionController dimController = new DimensionController(
-		    gfatm.localDb);
+	    DimensionController dimController = new DimensionController(gfatm.localDb);
 	    dimController.modelDimensions();
 	    FactController factController = new FactController(gfatm.localDb);
 	    factController.modelFacts();

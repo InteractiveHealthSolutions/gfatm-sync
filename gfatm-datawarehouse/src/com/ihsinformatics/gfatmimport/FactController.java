@@ -14,6 +14,7 @@ package com.ihsinformatics.gfatmimport;
 import java.sql.SQLException;
 import java.util.logging.Logger;
 
+import com.ihsinformatics.gfatmimport.util.SqlExecuteUtil;
 import com.ihsinformatics.util.DatabaseUtil;
 
 /**
@@ -48,7 +49,7 @@ public class FactController {
 	    log.info("Starting fact modeling");
 	    SqlExecuteUtil sqlUtil = new SqlExecuteUtil(db.getUrl(),
 		    db.getDriverName(), db.getUsername(), db.getPassword());
-	    sqlUtil.execute(GfatmDataWarehouseMain.resourcePath
+	    sqlUtil.execute(DataWarehouseMain.resourcePath
 		    + factQueriesFile);
 	} catch (SQLException e) {
 	    e.printStackTrace();

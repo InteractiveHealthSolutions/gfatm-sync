@@ -18,6 +18,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import com.ihsinformatics.gfatmimport.util.SqlExecuteUtil;
 import com.ihsinformatics.util.DatabaseUtil;
 import com.ihsinformatics.util.VersionUtil;
 
@@ -25,7 +26,7 @@ import com.ihsinformatics.util.VersionUtil;
  * @author owais.hussain@ihsinformatics.com
  *
  */
-public class GfatmDataWarehouseMain {
+public class DataWarehouseMain {
 
     private static final Logger log = Logger.getLogger(Class.class.getName());
     public static String resourcePath = System.getProperty("user.home")
@@ -39,7 +40,7 @@ public class GfatmDataWarehouseMain {
     private Properties props;
     private String dwSchema;
 
-    private GfatmDataWarehouseMain() {
+    private DataWarehouseMain() {
 	localDb = new DatabaseUtil();
 	props = new Properties();
     }
@@ -80,21 +81,24 @@ public class GfatmDataWarehouseMain {
 	    System.exit(-1);
 	}
 	// Read properties file
-	GfatmDataWarehouseMain gfatm = new GfatmDataWarehouseMain();
-	gfatm.readProperties(propertiesFileName);
-	ImportController importController = new ImportController(gfatm.localDb);
+	DataWarehouseMain dwObj = new DataWarehouseMain();
+	dwObj.readProperties(propertiesFileName);
+	OpenMrsImportController openMrsImportController = new OpenMrsImportController(dwObj.localDb);
+	GfatmImportController gfatmImportController = new GfatmImportController(dwObj.localDb);
 	try {
 	    if (doReset) {
-		gfatm.destroyDatawarehouse();
-		gfatm.createDatawarehouse();
-		importController.importData();
+		dwObj.destroyDatawarehouse();
+		dwObj.createDatawarehouse();
+		gfatmImportController.importData();
+		openMrsImportController.importData();
 	    } else if (doUpdate) {
-		gfatm.createDatawarehouse();
-		importController.importData();
+		dwObj.createDatawarehouse();
+		gfatmImportController.importData();
+		openMrsImportController.importData();
 	    }
-	    DimensionController dimController = new DimensionController(gfatm.localDb);
+	    DimensionController dimController = new DimensionController(dwObj.localDb);
 	    dimController.modelDimensions();
-	    FactController factController = new FactController(gfatm.localDb);
+	    FactController factController = new FactController(dwObj.localDb);
 	    factController.modelFacts();
 	} catch (Exception e) {
 	    e.printStackTrace();

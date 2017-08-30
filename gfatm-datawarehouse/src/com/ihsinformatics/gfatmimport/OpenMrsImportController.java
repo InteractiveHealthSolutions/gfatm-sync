@@ -11,10 +11,6 @@ Interactive Health Solutions, hereby disclaims all copyright interest in this pr
  */
 package com.ihsinformatics.gfatmimport;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -29,15 +25,11 @@ import com.ihsinformatics.util.DateTimeUtil;
  * @author owais.hussain@ihsinformatics.com
  *
  */
-public class ImportController {
+public class OpenMrsImportController extends AbstractImportController {
 
     private static final Logger log = Logger.getLogger(Class.class.getName());
-    private DatabaseUtil localDb;
-    private DatabaseUtil remoteDb;
-    private Date fromDate;
-    private Date toDate;
 
-    public ImportController(DatabaseUtil db) {
+    public OpenMrsImportController(DatabaseUtil db) {
 	this.localDb = db;
 	this.fromDate = new Date();
 	this.toDate = new Date();
@@ -111,79 +103,6 @@ public class ImportController {
     }
 
     /**
-     * Returns a filter for select queries
-     * 
-     * @param createDateName
-     * @param updateDateName
-     * @param fromDate
-     * @param toDate
-     * @return
-     */
-    public String filter(String createDateName, String updateDateName) {
-	StringBuilder filter = new StringBuilder(" WHERE 1=1 ");
-	filter.append("AND (" + createDateName);
-	filter.append(" BETWEEN TIMESTAMP('"
-		+ DateTimeUtil.getSqlDateTime(fromDate) + "') ");
-	filter.append("AND TIMESTAMP('" + DateTimeUtil.getSqlDateTime(toDate)
-		+ "')) ");
-	if (updateDateName != null) {
-	    filter.append(" OR (" + updateDateName);
-	    filter.append(" BETWEEN TIMESTAMP('"
-		    + DateTimeUtil.getSqlDateTime(fromDate) + "') ");
-	    filter.append("AND TIMESTAMP('"
-		    + DateTimeUtil.getSqlDateTime(toDate) + "')) ");
-	}
-	return filter.toString();
-    }
-
-    /**
-     * Fetch data from remote database and insert into local database
-     * 
-     * @param selectQuery
-     * @param insertQuery
-     * @return
-     * @throws SQLException
-     * @throws ClassNotFoundException
-     * @throws IllegalAccessException
-     * @throws InstantiationException
-     */
-    public void remoteSelectInsert(String selectQuery, String insertQuery)
-	    throws SQLException, InstantiationException,
-	    IllegalAccessException, ClassNotFoundException {
-	Connection remoteConnection = remoteDb.getConnection();
-	Connection localConnection = localDb.getConnection();
-	remoteSelectInsert(selectQuery, insertQuery, remoteConnection,
-		localConnection);
-    }
-
-    /**
-     * Fetch data from source database and insert into target database
-     * 
-     * @param selectQuery
-     * @param insertQuery
-     * @param sourceConnection
-     * @param targetConnection
-     * @throws SQLException
-     */
-    public void remoteSelectInsert(String selectQuery, String insertQuery,
-	    Connection sourceConnection, Connection targetConnection)
-	    throws SQLException {
-	PreparedStatement source = sourceConnection
-		.prepareStatement(selectQuery);
-	PreparedStatement target = targetConnection
-		.prepareStatement(insertQuery);
-	ResultSet data = source.executeQuery();
-	ResultSetMetaData metaData = data.getMetaData();
-	while (data.next()) {
-	    for (int i = 1; i <= metaData.getColumnCount(); i++) {
-		String value = data.getString(i);
-		target.setString(i, value);
-	    }
-	    target.executeUpdate();
-	}
-    }
-
-    /**
      * Remove all data from temporary tables related to given implementation ID
      * 
      * @param implementationId
@@ -191,7 +110,23 @@ public class ImportController {
     private void clearTempTables(int implementationId) {
 	String[] tables = { "tmp_person", "tmp_person_attribute",
 		"tmp_person_attribute_type", "tmp_person_address",
-		"tmp_person_name", "tmp_role", "tmp_role_role" };
+		"tmp_person_name", "tmp_role", "tmp_role_role",
+		"tmp_privilege", "tmp_role_privilege", "tmp_users",
+		"tmp_user_property", "tmp_user_role",
+		"tmp_provider_attribute_type", "tmp_provider",
+		"tmp_provider_attribute", "tmp_location_attribute_type",
+		"tmp_location", "tmp_location_attribute", "tmp_location_tag",
+		"tmp_location_tag_map", "tmp_concept_class", "tmp_concept_set",
+		"tmp_concept_datatype", "tmp_concept_map_type", "tmp_concept",
+		"tmp_concept_name", "tmp_concept_description",
+		"tmp_concept_answer", "tmp_concept_numeric",
+		"tmp_patient_identifier_type", "tmp_patient",
+		"tmp_patient_identifier", "tmp_patient_program",
+		"tmp_encounter_type", "tmp_form", "tmp_encounter_role",
+		"tmp_encounter", "tmp_encounter_provider", "tmp_obs",
+		"tmp_visit_type", "tmp_visit_attribute_type",
+		"tmp_visit_attribute", "tmp_field", "tmp_field_answer",
+		"tmp_field_type", "tmp_form_field" };
 	for (String table : tables) {
 	    try {
 		localDb.runCommandWithException(CommandType.TRUNCATE,
@@ -1634,29 +1569,6 @@ public class ImportController {
 	String tableName;
 
 	try {
-
-	    /*
-	     * //Form tableName="form"; insertQuery = "INSERT INTO tmp_"+
-	     * tableName +
-	     * " (surrogate_id, implementation_id, form_id, name, version, build, published, xslt, template, description, encounter_type, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retired_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-	     * ; selectQuery = "SELECT 0,'" + implementationId +
-	     * "', form_id, name, version, build, published, xslt, template, description, encounter_type, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retired_reason, uuid FROM "
-	     * + database + "."+ tableName +" AS t "+ filter("t.date_created",
-	     * "t.date_changed"); log.info("Inserting data from " + database +
-	     * ".form into data warehouse"); remoteSelectInsert(selectQuery,
-	     * insertQuery, remoteDb.getConnection(), localDb.getConnection());
-	     * // Insert new records insertQuery = "INSERT INTO " + tableName +
-	     * " SELECT * FROM tmp_" + tableName +
-	     * " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName +
-	     * " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)"
-	     * ; localDb.runCommand(CommandType.INSERT, insertQuery); // Update
-	     * the existing records updateQuery = "UPDATE " + tableName +
-	     * " AS a, tmp_" + tableName +
-	     * " AS t SET a.form_id=t.form_id,a.name=t.name,a.version=t.version,a.build=t.build,a.published=t.published,a.xslt=t.xslt,a.template=t.template,a.description=t.description,a.encounter_type=t.encounter_type,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retired_reason=t.retired_reason WHERE a.implementation_id = t.implementation_id = '"
-	     * + implementationId + "' AND a.uuid = t.uuid";
-	     * localDb.runCommand(CommandType.UPDATE, updateQuery);
-	     */
-
 	    // Field
 	    tableName = "field";
 	    insertQuery = "INSERT INTO tmp_"

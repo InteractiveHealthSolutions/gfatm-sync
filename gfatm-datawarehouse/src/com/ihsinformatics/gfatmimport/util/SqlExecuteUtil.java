@@ -1,4 +1,4 @@
-package com.ihsinformatics.gfatmimport;
+package com.ihsinformatics.gfatmimport.util;
 
 import java.io.File;
 import java.io.InputStream;

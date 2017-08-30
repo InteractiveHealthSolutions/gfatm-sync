@@ -497,7 +497,7 @@ public class DimensionController {
 	query.append("select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, et.name as encounter_name, et.description, e.patient_id, e.location_id, p.identifier as provider, e.encounter_datetime as date_entered, e.creator, e.date_created as date_start, e.changed_by, e.date_changed, e.date_created as date_end, e.uuid from encounter as e ");
 	query.append("inner join encounter_type as et on et.encounter_type_id = e.encounter_type ");
 	query.append("left outer join encounter_provider as ep on ep.encounter_id = e.encounter_id ");
-	query.append("left outer join provider as p on p.person_id = ep.provider_id ");
+	query.append("left outer join provider as p on p.provider_id = ep.provider_id ");
 	StringBuilder filter = new StringBuilder(" where e.voided = 0 ");
 	filter.append("and (e.date_created between timestamp('"
 		+ DateTimeUtil.getSqlDateTime(from) + "') ");

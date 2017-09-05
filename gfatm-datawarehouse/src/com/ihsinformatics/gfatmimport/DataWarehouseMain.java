@@ -15,11 +15,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Logger;
 
 import com.ihsinformatics.gfatmimport.util.SqlExecuteUtil;
 import com.ihsinformatics.util.DatabaseUtil;
+import com.ihsinformatics.util.DateTimeUtil;
 import com.ihsinformatics.util.VersionUtil;
 
 /**
@@ -83,25 +85,51 @@ public class DataWarehouseMain {
 	// Read properties file
 	DataWarehouseMain dwObj = new DataWarehouseMain();
 	dwObj.readProperties(propertiesFileName);
-	OpenMrsImportController openMrsImportController = new OpenMrsImportController(dwObj.localDb);
-	GfatmImportController gfatmImportController = new GfatmImportController(dwObj.localDb);
-	try {
-	    if (doReset) {
-		dwObj.destroyDatawarehouse();
-		dwObj.createDatawarehouse();
-		gfatmImportController.importData();
-		openMrsImportController.importData();
-	    } else if (doUpdate) {
-		dwObj.createDatawarehouse();
-		gfatmImportController.importData();
-		openMrsImportController.importData();
+	// Fetch source databases from _implementation table
+	Object[][] sources = dwObj.localDb
+		.getTableData("SELECT implementation_id,connection_url,driver,db_name,username,password,date_added,last_updated FROM _implementation WHERE active=1 AND status<>'RUNNING'");
+	// Import data from each source
+	for (int i = 0; i < sources.length; i++) {
+	    Object[] source = sources[i];
+	    int implementationId = Integer.parseInt(source[0].toString());
+	    String url = source[1].toString();
+	    String driverName = source[2].toString();
+	    String dbName = source[3].toString();
+	    String username = source[4].toString();
+	    String password = source[5].toString();
+	    if (source[6] == null) {
+		source[6] = new String("2000-01-01 00:00:00");
 	    }
-	    DimensionController dimController = new DimensionController(dwObj.localDb);
-	    dimController.modelDimensions();
-	    FactController factController = new FactController(dwObj.localDb);
-	    factController.modelFacts();
-	} catch (Exception e) {
-	    e.printStackTrace();
+	    DatabaseUtil sourceDb = new DatabaseUtil(url, dbName, driverName, username, password);
+	    try {
+		// Date dateCreated = DateTimeUtil.getDateFromString(source[6].toString(), DateTimeUtil.SQL_DATETIME);
+		Date lastUpdated = DateTimeUtil.getDateFromString(source[7].toString(), DateTimeUtil.SQL_DATETIME);
+		OpenMrsImportController openMrsImportController = new OpenMrsImportController(sourceDb, dwObj.localDb, lastUpdated, new Date());
+		GfatmImportController gfatmImportController = new GfatmImportController(sourceDb, dwObj.localDb, lastUpdated, new Date());
+		// Update status of implementation record
+		/* Enable on production */
+		dwObj.localDb.updateRecord("_implementation", new String[] { "status" }, new String[] { "RUNNING" }, "implementation_id='" + implementationId + "'");
+		if (doReset) {
+		    dwObj.destroyDatawarehouse();
+		    dwObj.createDatawarehouse();
+		    gfatmImportController.importData(implementationId);
+		    openMrsImportController.importData(implementationId);
+		} else if (doUpdate) {
+		    dwObj.createDatawarehouse();
+		    gfatmImportController.importData(implementationId);
+		    openMrsImportController.importData(implementationId);
+		}
+		// Update the status in _implementation table
+		dwObj.localDb.updateRecord("_implementation", new String[] { "last_updated" }, new String[] { DateTimeUtil.getSqlDateTime(new Date()) }, "implementation_id='" + implementationId + "'");
+		DimensionController dimController = new DimensionController(dwObj.localDb);
+		dimController.modelDimensions();
+		FactController factController = new FactController(dwObj.localDb);
+		factController.modelFacts();
+	    } catch (Exception e) {
+		e.printStackTrace();
+	    } finally {
+		// TODO: Update the status in _implementation
+	    }
 	}
 	System.exit(0);
     }

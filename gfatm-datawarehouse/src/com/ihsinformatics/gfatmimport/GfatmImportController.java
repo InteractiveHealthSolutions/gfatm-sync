@@ -18,7 +18,6 @@ import java.util.logging.Logger;
 
 import com.ihsinformatics.util.CommandType;
 import com.ihsinformatics.util.DatabaseUtil;
-import com.ihsinformatics.util.DateTimeUtil;
 
 /**
  * @author owais.hussain@ihsinformatics.com
@@ -28,10 +27,19 @@ public class GfatmImportController extends AbstractImportController {
 
     private static final Logger log = Logger.getLogger(Class.class.getName());
 
-    public GfatmImportController(DatabaseUtil db) {
-	this.localDb = db;
+    public GfatmImportController(DatabaseUtil sourceDb, DatabaseUtil targetDb) {
+	this.sourceDb = sourceDb;
+	this.targetDb = targetDb;
 	this.fromDate = new Date();
 	this.toDate = new Date();
+    }
+
+    public GfatmImportController(DatabaseUtil sourceDb, DatabaseUtil targetDb,
+	    Date fromDate, Date toDate) {
+	this.sourceDb = sourceDb;
+	this.targetDb = targetDb;
+	this.fromDate = fromDate;
+	this.toDate = toDate;
     }
 
     /**
@@ -43,56 +51,18 @@ public class GfatmImportController extends AbstractImportController {
      * @throws InstantiationException
      * @throws ParseException
      */
-    public void importData() throws InstantiationException,
+    public void importData(int implementationId) throws InstantiationException,
 	    IllegalAccessException, ClassNotFoundException, SQLException,
 	    ParseException {
-	// Fetch source databases from _implementation table
-	Object[][] sources = localDb
-		.getTableData(
-			"_implementation",
-			"implementation_id,connection_url,driver,db_name,username,password,last_updated",
-			"active=1 AND status<>'RUNNING'");
-	// For each source, import all data
-	for (Object[] source : sources) {
-	    int implementationId = Integer.parseInt(source[0].toString());
-	    String url = source[1].toString();
-	    String driverName = source[2].toString();
-	    String dbName = "gfatm";
-	    String userName = source[4].toString();
-	    String password = source[5].toString();
-	    if (source[6] == null) {
-		source[6] = new String("2000-01-01 00:00:00");
-	    }
-	    String lastUpdated = source[6].toString();
-	    fromDate = DateTimeUtil.getDateFromString(lastUpdated,
-		    DateTimeUtil.SQL_DATETIME);
-	    remoteDb = new DatabaseUtil();
-	    remoteDb.setConnection(url, dbName, driverName, userName, password);
-	    remoteDb.getConnection();
-	    // Import data from this connection into data warehouse
-	    try {
-		// Update status of implementation record
-		/* Enable on production */
-		localDb.updateRecord("_implementation",
-			new String[] { "status" }, new String[] { "RUNNING" },
-			"implementation_id='" + implementationId + "'");
-		clearTempTables(implementationId);
-		importLocationData(remoteDb, implementationId);
-		importUserData(remoteDb, implementationId);
-		importUserFormData(remoteDb, implementationId);
-		// Update the status in _implementation table
-		localDb.updateRecord(
-			"_implementation",
-			new String[] { "last_updated" },
-			new String[] { DateTimeUtil.getSqlDateTime(new Date()) },
-			"implementation_id='" + implementationId + "'");
-	    } catch (Exception e) {
-		e.printStackTrace();
-	    } finally {
-		localDb.updateRecord("_implementation",
-			new String[] { "status" }, new String[] { "STOPPED" },
-			"implementation_id='" + implementationId + "'");
-	    }
+	sourceDb.getConnection();
+	// Import data from this connection into data warehouse
+	try {
+	    clearTempTables(implementationId);
+	    importLocationData(sourceDb, implementationId);
+	    importUserData(sourceDb, implementationId);
+	    importUserFormData(sourceDb, implementationId);
+	} catch (Exception e) {
+	    e.printStackTrace();
 	}
     }
 
@@ -102,16 +72,16 @@ public class GfatmImportController extends AbstractImportController {
      * @param implementationId
      */
     private void clearTempTables(int implementationId) {
-	String[] tables = { "gfatm_tmp_element", "gfatm_tmp_location",
-		"gfatm_tmp_location_attribute",
-		"gfatm_tmp_location_attribute_type",
-		"gfatm_tmp_user_attribute", "gfatm_tmp_user_attribute_type",
-		"gfatm_tmp_user_form", "gfatm_tmp_user_form_result",
-		"gfatm_tmp_user_form_type", "gfatm_tmp_user_location",
-		"gfatm_tmp_user_role", "gfatm_tmp_users" };
+	String[] tables = { "_element", "tmp_gfatm_location",
+		"tmp_gfatm_location_attribute",
+		"tmp_gfatm_location_attribute_type",
+		"tmp_gfatm_user_attribute", "tmp_gfatm_user_attribute_type",
+		"tmp_gfatm_user_form", "tmp_gfatm_user_form_result",
+		"tmp_gfatm_user_form_type", "tmp_gfatm_user_location",
+		"tmp_gfatm_user_role", "tmp_gfatm_users" };
 	for (String table : tables) {
 	    try {
-		localDb.runCommandWithException(CommandType.TRUNCATE,
+		targetDb.runCommandWithException(CommandType.TRUNCATE,
 			"TRUNCATE TABLE " + table);
 	    } catch (SQLException e) {
 		log.warning("Table: " + table + " not found in data warehouse!");
@@ -120,7 +90,7 @@ public class GfatmImportController extends AbstractImportController {
 	    }
 	}
     }
-    
+
     /**
      * Load data from Location-related tables into data warehouse
      * 
@@ -141,61 +111,59 @@ public class GfatmImportController extends AbstractImportController {
 
 	try {
 	    // Location Attribute Type
-	    insertQuery = "INSERT INTO gfatm_location_attribute_type (surrogate_id, implementation_id, location_attribute_type_id, attribute_name, validation_regex, required, description, date_created, created_by, created_at, date_changed, changed_by, changed_at, data_type, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+	    insertQuery = "INSERT INTO tmp_gfatm_location_attribute_type (surrogate_id, implementation_id, location_attribute_type_id, attribute_name, validation_regex, required, description, date_created, created_by, created_at, date_changed, changed_by, changed_at, data_type, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 	    selectQuery = "SELECT 0,'"
 		    + implementationId
 		    + "', location_attribute_type_id, attribute_name, validation_regex, required, description, date_created, created_by, created_at, date_changed, changed_by, changed_at, data_type, uuid FROM "
-		    + database + ".gfatm_location_attribute_type AS t "
+		    + database + ".location_attribute_type AS t "
 		    + filter("t.date_created", "t.date_changed");
-	    log.info("Inserting data from gfatm_location_attribute_type into data warehouse");
+	    log.info("Inserting data from location_attribute_type into data warehouse");
 	    remoteSelectInsert(selectQuery, insertQuery,
-		    remoteDb.getConnection(), localDb.getConnection());
+		    remoteDb.getConnection(), targetDb.getConnection());
 	    // Insert new records
 	    insertQuery = "INSERT INTO gfatm_location_attribute_type SELECT * FROM tmp_gfatm_location_attribute_type AS t WHERE NOT EXISTS (SELECT * FROM gfatm_location_attribute_type WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
-	    localDb.runCommand(CommandType.INSERT, insertQuery);
+	    targetDb.runCommand(CommandType.INSERT, insertQuery);
 	    // Update the existing records
 	    updateQuery = "UPDATE gfatm_location_attribute_type AS a, tmp_gfatm_location_attribute_type AS t "
 		    + "SET a.location_attribute_type_id = t.location_attribute_type_id, a.attribute_name = t.attribute_name, a.validation_regex = t.validation_regex, a.required = t.required, a.description = t.description, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at, a.data_type = t.data_type WHERE a.implementation_id = t.implementation_id = '"
 		    + implementationId + "' AND a.uuid = t.uuid";
-	    localDb.runCommand(CommandType.UPDATE, updateQuery);
+	    targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
 	    // Location
-	    insertQuery = "INSERT INTO gfatm_location (surrogate_id, implementation_id, location_id, location_name, category, description, address1, address2, address3, city_village, state_province, country, landmark1, landmark2, latitude, longitude, primary_contact, secondary_contact, email, fax, parent_location, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+	    insertQuery = "INSERT INTO tmp_gfatm_location (surrogate_id, implementation_id, location_id, location_name, category, description, address1, address2, address3, city_village, state_province, country, landmark1, landmark2, latitude, longitude, primary_contact, secondary_contact, email, fax, parent_location, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 	    selectQuery = "SELECT 0,'"
 		    + implementationId
-		    + "', surrogate_id, implementation_id, location_id, location_name, category, description, address1, address2, address3, city_village, state_province, country, landmark1, landmark2, latitude, longitude, primary_contact, secondary_contact, email, fax, parent_location, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
-		    + database + ".gfatm_location AS t "
+		    + "', location_id, location_name, category, description, address1, address2, address3, city_village, state_province, country, landmark1, landmark2, latitude, longitude, primary_contact, secondary_contact, email, fax, parent_location, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+		    + database + ".location AS t "
 		    + filter("t.date_created", "t.date_changed");
-	    log.info("Inserting data from gfatm_location into data warehouse");
+	    log.info("Inserting data from location into data warehouse");
 	    remoteSelectInsert(selectQuery, insertQuery,
-		    remoteDb.getConnection(), localDb.getConnection());
+		    remoteDb.getConnection(), targetDb.getConnection());
 	    // Insert new records
-	    insertQuery = "INSERT INTO gfatm_location SELECT * FROM tmp_gfatm_location AS t WHERE NOT EXISTS (SELECT * FROM gfatm_gfatm_location WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
-	    localDb.runCommand(CommandType.INSERT, insertQuery);
+	    insertQuery = "INSERT INTO gfatm_location SELECT * FROM tmp_gfatm_location AS t WHERE NOT EXISTS (SELECT * FROM gfatm_location WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+	    targetDb.runCommand(CommandType.INSERT, insertQuery);
 	    // Update the existing records
 	    updateQuery = "UPDATE gfatm_location AS a, tmp_gfatm_location AS t "
 		    + "SET a.location_id = t.location_id, a.location_name = t.location_name, a.category = t.category, a.description = t.description, a.address1 = t.address1, a.address2 = t.address2, a.address3 = t.address3, a.city_village = t.city_village, a.state_province = t.state_province, a.country = t.country, a.landmark1 = t.landmark1, a.landmark2 = t.landmark2, a.latitude = t.latitude, a.longitude = t.longitude, a.primary_contact = t.primary_contact, a.secondary_contact = t.secondary_contact, a.email = t.email, a.fax = t.fax, a.parent_location = t.parent_location, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at WHERE a.implementation_id = t.implementation_id = '"
 		    + implementationId + "' AND a.uuid = t.uuid";
-	    localDb.runCommand(CommandType.UPDATE, updateQuery);
+	    targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
 	    // Location Attribute
 	    insertQuery = "INSERT INTO gfatm_location_attribute () VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
-	    selectQuery = "SELECT 0,'"
-		    + implementationId
-		    + "',  FROM "
+	    selectQuery = "SELECT 0,'" + implementationId + "',  FROM "
 		    + database + ".gfatm_location_attribute AS t "
 		    + filter("t.date_created", "t.date_changed");
 	    log.info("Inserting data from gfatm_location_attribute into data warehouse");
 	    remoteSelectInsert(selectQuery, insertQuery,
-		    remoteDb.getConnection(), localDb.getConnection());
+		    remoteDb.getConnection(), targetDb.getConnection());
 	    // Insert new records
 	    insertQuery = "INSERT INTO gfatm_location_attribute SELECT * FROM tmp_gfatm_location_attribute AS t WHERE NOT EXISTS (SELECT * FROM gfatm_location_attribute WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
-	    localDb.runCommand(CommandType.INSERT, insertQuery);
+	    targetDb.runCommand(CommandType.INSERT, insertQuery);
 	    // Update the existing records
 	    updateQuery = "UPDATE gfatm_location_attribute AS a, tmp_gfatm_location_attribute AS t "
 		    + "SET a.location_attribute_id = t.location_attribute_id, a.attribute_type_id = t.attribute_type_id, a.location_id = t.location_id, a.attribute_value = t.attribute_value, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at WHERE a.implementation_id = t.implementation_id = '"
 		    + implementationId + "' AND a.uuid = t.uuid";
-	    localDb.runCommand(CommandType.UPDATE, updateQuery);
+	    targetDb.runCommand(CommandType.UPDATE, updateQuery);
 	} catch (SQLException e) {
 	    e.printStackTrace();
 	} finally {
@@ -203,7 +171,7 @@ public class GfatmImportController extends AbstractImportController {
 	    remoteDb.setDbName("openmrs");
 	}
     }
-    
+
     /**
      * Load data from User-related tables into data warehouse
      * 
@@ -232,15 +200,15 @@ public class GfatmImportController extends AbstractImportController {
 		    + filter("t.date_created", "t.date_changed");
 	    log.info("Inserting data from gfatm_user_form_type into data warehouse");
 	    remoteSelectInsert(selectQuery, insertQuery,
-		    remoteDb.getConnection(), localDb.getConnection());
+		    remoteDb.getConnection(), targetDb.getConnection());
 	    // Insert new records
 	    insertQuery = "INSERT INTO gfatm_user_form_type SELECT * FROM tmp_gfatm_user_form_type AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_form_type WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
-	    localDb.runCommand(CommandType.INSERT, insertQuery);
+	    targetDb.runCommand(CommandType.INSERT, insertQuery);
 	    // Update the existing records
 	    updateQuery = "UPDATE gfatm_user_form_type AS a, tmp_gfatm_user_form_type AS t "
 		    + "SET a.user_form_type_id = t.user_form_type_id, a.user_form_type = t.user_form_type, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at, a.description = t.description WHERE a.implementation_id = t.implementation_id = '"
 		    + implementationId + "' AND a.uuid = t.uuid";
-	    localDb.runCommand(CommandType.UPDATE, updateQuery);
+	    targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
 	} catch (SQLException e) {
 	    e.printStackTrace();
@@ -280,15 +248,15 @@ public class GfatmImportController extends AbstractImportController {
 		    + filter("t.date_created", "t.date_changed");
 	    log.info("Inserting data from gfatm_user_form_type into data warehouse");
 	    remoteSelectInsert(selectQuery, insertQuery,
-		    remoteDb.getConnection(), localDb.getConnection());
+		    remoteDb.getConnection(), targetDb.getConnection());
 	    // Insert new records
 	    insertQuery = "INSERT INTO gfatm_user_form_type SELECT * FROM tmp_gfatm_user_form_type AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_form_type WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
-	    localDb.runCommand(CommandType.INSERT, insertQuery);
+	    targetDb.runCommand(CommandType.INSERT, insertQuery);
 	    // Update the existing records
 	    updateQuery = "UPDATE gfatm_user_form_type AS a, tmp_gfatm_user_form_type AS t "
 		    + "SET a.user_form_type_id = t.user_form_type_id, a.user_form_type = t.user_form_type, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at, a.description = t.description WHERE a.implementation_id = t.implementation_id = '"
 		    + implementationId + "' AND a.uuid = t.uuid";
-	    localDb.runCommand(CommandType.UPDATE, updateQuery);
+	    targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
 	} catch (SQLException e) {
 	    e.printStackTrace();

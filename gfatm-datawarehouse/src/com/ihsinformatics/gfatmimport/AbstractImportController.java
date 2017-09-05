@@ -28,8 +28,8 @@ import com.ihsinformatics.util.DateTimeUtil;
  */
 public class AbstractImportController {
 
-    protected DatabaseUtil localDb;
-    protected DatabaseUtil remoteDb;
+    protected DatabaseUtil targetDb;
+    protected DatabaseUtil sourceDb;
     protected Date fromDate;
     protected Date toDate;
 
@@ -73,8 +73,8 @@ public class AbstractImportController {
     public void remoteSelectInsert(String selectQuery, String insertQuery)
 	    throws SQLException, InstantiationException,
 	    IllegalAccessException, ClassNotFoundException {
-	Connection remoteConnection = remoteDb.getConnection();
-	Connection localConnection = localDb.getConnection();
+	Connection remoteConnection = sourceDb.getConnection();
+	Connection localConnection = targetDb.getConnection();
 	remoteSelectInsert(selectQuery, insertQuery, remoteConnection,
 		localConnection);
     }

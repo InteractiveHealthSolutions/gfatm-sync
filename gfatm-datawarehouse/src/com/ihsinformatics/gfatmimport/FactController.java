@@ -23,37 +23,36 @@ import com.ihsinformatics.util.DatabaseUtil;
  */
 public class FactController {
 
-    private static final Logger log = Logger.getLogger(Class.class.getName());
-    private static final String factQueriesFile = "fact_queries.sql";
-    private DatabaseUtil db;
+	private static final Logger log = Logger.getLogger(Class.class.getName());
+	private static final String factQueriesFile = "fact_queries.sql";
+	private DatabaseUtil db;
 
-    public static void main(String[] args) {
-	DatabaseUtil myDb = new DatabaseUtil();
-	myDb.setConnection(
-		"jdbc:mysql://127.0.0.1:3306/gfatm_dw?autoReconnect=true&useSSL=false",
-		"gfatm_dw", "com.mysql.jdbc.Driver", "root", "jingle94");
-	myDb.tryConnection();
-	FactController fc = new FactController(myDb);
-	fc.modelFacts();
-    }
-
-    public FactController(DatabaseUtil db) {
-	this.db = db;
-    }
-
-    /**
-     * Perform fact modeling
-     */
-    public void modelFacts() {
-	try {
-	    log.info("Starting fact modeling");
-	    SqlExecuteUtil sqlUtil = new SqlExecuteUtil(db.getUrl(),
-		    db.getDriverName(), db.getUsername(), db.getPassword());
-	    sqlUtil.execute(DataWarehouseMain.resourcePath
-		    + factQueriesFile);
-	} catch (SQLException e) {
-	    e.printStackTrace();
+	public static void main(String[] args) {
+		DatabaseUtil myDb = new DatabaseUtil();
+		myDb.setConnection(
+				"jdbc:mysql://127.0.0.1:3306/gfatm_dw?autoReconnect=true&useSSL=false",
+				"gfatm_dw", "com.mysql.jdbc.Driver", "root", "jingle94");
+		myDb.tryConnection();
+		FactController fc = new FactController(myDb);
+		fc.modelFacts();
 	}
-	log.info("Finished fact modeling");
-    }
+
+	public FactController(DatabaseUtil db) {
+		this.db = db;
+	}
+
+	/**
+	 * Perform fact modeling
+	 */
+	public void modelFacts() {
+		try {
+			log.info("Starting fact modeling");
+			SqlExecuteUtil sqlUtil = new SqlExecuteUtil(db.getUrl(),
+					db.getDriverName(), db.getUsername(), db.getPassword());
+			sqlUtil.execute(DataWarehouseMain.resourcePath + factQueriesFile);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		log.info("Finished fact modeling");
+	}
 }

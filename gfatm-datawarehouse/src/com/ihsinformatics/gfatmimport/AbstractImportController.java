@@ -28,82 +28,82 @@ import com.ihsinformatics.util.DateTimeUtil;
  */
 public class AbstractImportController {
 
-    protected DatabaseUtil targetDb;
-    protected DatabaseUtil sourceDb;
-    protected Date fromDate;
-    protected Date toDate;
+	protected DatabaseUtil targetDb;
+	protected DatabaseUtil sourceDb;
+	protected Date fromDate;
+	protected Date toDate;
 
-    /**
-     * Returns a filter for select queries
-     * 
-     * @param createDateName
-     * @param updateDateName
-     * @param fromDate
-     * @param toDate
-     * @return
-     */
-    public String filter(String createDateName, String updateDateName) {
-	StringBuilder filter = new StringBuilder(" WHERE 1=1 ");
-	filter.append("AND (" + createDateName);
-	filter.append(" BETWEEN TIMESTAMP('"
-		+ DateTimeUtil.getSqlDateTime(fromDate) + "') ");
-	filter.append("AND TIMESTAMP('" + DateTimeUtil.getSqlDateTime(toDate)
-		+ "')) ");
-	if (updateDateName != null) {
-	    filter.append(" OR (" + updateDateName);
-	    filter.append(" BETWEEN TIMESTAMP('"
-		    + DateTimeUtil.getSqlDateTime(fromDate) + "') ");
-	    filter.append("AND TIMESTAMP('"
-		    + DateTimeUtil.getSqlDateTime(toDate) + "')) ");
+	/**
+	 * Returns a filter for select queries
+	 * 
+	 * @param createDateName
+	 * @param updateDateName
+	 * @param fromDate
+	 * @param toDate
+	 * @return
+	 */
+	public String filter(String createDateName, String updateDateName) {
+		StringBuilder filter = new StringBuilder(" WHERE 1=1 ");
+		filter.append("AND (" + createDateName);
+		filter.append(" BETWEEN TIMESTAMP('"
+				+ DateTimeUtil.getSqlDateTime(fromDate) + "') ");
+		filter.append("AND TIMESTAMP('" + DateTimeUtil.getSqlDateTime(toDate)
+				+ "')) ");
+		if (updateDateName != null) {
+			filter.append(" OR (" + updateDateName);
+			filter.append(" BETWEEN TIMESTAMP('"
+					+ DateTimeUtil.getSqlDateTime(fromDate) + "') ");
+			filter.append("AND TIMESTAMP('"
+					+ DateTimeUtil.getSqlDateTime(toDate) + "')) ");
+		}
+		return filter.toString();
 	}
-	return filter.toString();
-    }
 
-    /**
-     * Fetch data from remote database and insert into local database
-     * 
-     * @param selectQuery
-     * @param insertQuery
-     * @return
-     * @throws SQLException
-     * @throws ClassNotFoundException
-     * @throws IllegalAccessException
-     * @throws InstantiationException
-     */
-    public void remoteSelectInsert(String selectQuery, String insertQuery)
-	    throws SQLException, InstantiationException,
-	    IllegalAccessException, ClassNotFoundException {
-	Connection remoteConnection = sourceDb.getConnection();
-	Connection localConnection = targetDb.getConnection();
-	remoteSelectInsert(selectQuery, insertQuery, remoteConnection,
-		localConnection);
-    }
-
-    /**
-     * Fetch data from source database and insert into target database
-     * 
-     * @param selectQuery
-     * @param insertQuery
-     * @param sourceConnection
-     * @param targetConnection
-     * @throws SQLException
-     */
-    public void remoteSelectInsert(String selectQuery, String insertQuery,
-	    Connection sourceConnection, Connection targetConnection)
-	    throws SQLException {
-	PreparedStatement source = sourceConnection
-		.prepareStatement(selectQuery);
-	PreparedStatement target = targetConnection
-		.prepareStatement(insertQuery);
-	ResultSet data = source.executeQuery();
-	ResultSetMetaData metaData = data.getMetaData();
-	while (data.next()) {
-	    for (int i = 1; i <= metaData.getColumnCount(); i++) {
-		String value = data.getString(i);
-		target.setString(i, value);
-	    }
-	    target.executeUpdate();
+	/**
+	 * Fetch data from remote database and insert into local database
+	 * 
+	 * @param selectQuery
+	 * @param insertQuery
+	 * @return
+	 * @throws SQLException
+	 * @throws ClassNotFoundException
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
+	 */
+	public void remoteSelectInsert(String selectQuery, String insertQuery)
+			throws SQLException, InstantiationException,
+			IllegalAccessException, ClassNotFoundException {
+		Connection remoteConnection = sourceDb.getConnection();
+		Connection localConnection = targetDb.getConnection();
+		remoteSelectInsert(selectQuery, insertQuery, remoteConnection,
+				localConnection);
 	}
-    }
+
+	/**
+	 * Fetch data from source database and insert into target database
+	 * 
+	 * @param selectQuery
+	 * @param insertQuery
+	 * @param sourceConnection
+	 * @param targetConnection
+	 * @throws SQLException
+	 */
+	public void remoteSelectInsert(String selectQuery, String insertQuery,
+			Connection sourceConnection, Connection targetConnection)
+			throws SQLException {
+		PreparedStatement source = sourceConnection
+				.prepareStatement(selectQuery);
+		PreparedStatement target = targetConnection
+				.prepareStatement(insertQuery);
+		ResultSet data = source.executeQuery();
+		ResultSetMetaData metaData = data.getMetaData();
+		while (data.next()) {
+			for (int i = 1; i <= metaData.getColumnCount(); i++) {
+				String value = data.getString(i);
+				target.setString(i, value);
+			}
+			target.executeUpdate();
+		}
+	}
 
 }

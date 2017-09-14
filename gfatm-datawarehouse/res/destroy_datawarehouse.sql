@@ -19,6 +19,8 @@ DROP TABLE IF EXISTS dim_location;
 DROP TABLE IF EXISTS dim_obs;
 DROP TABLE IF EXISTS dim_patient;
 DROP TABLE IF EXISTS dim_user;
+DROP TABLE IF EXISTS dim_user_form;
+DROP TABLE IF EXISTS dim_user_form_result;
 DROP TABLE IF EXISTS encounter;
 DROP TABLE IF EXISTS encounter_provider;
 DROP TABLE IF EXISTS encounter_role;

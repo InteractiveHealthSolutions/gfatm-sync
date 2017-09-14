@@ -1,8 +1,6 @@
 package com.ihsinformatics.gfatmimport.util;
 
 import java.io.File;
-import java.io.InputStream;
-import java.net.URL;
 import java.sql.SQLException;
 
 import org.apache.tools.ant.Project;

@@ -72,7 +72,7 @@ public class GfatmImportController extends AbstractImportController {
 	 * @param implementationId
 	 */
 	private void clearTempTables(int implementationId) {
-		String[] tables = { "_element", "tmp_gfatm_location",
+		String[] tables = { "tmp_gfatm_element", "tmp_gfatm_location",
 				"tmp_gfatm_location_attribute",
 				"tmp_gfatm_location_attribute_type",
 				"tmp_gfatm_user_attribute", "tmp_gfatm_user_attribute_type",
@@ -121,7 +121,7 @@ public class GfatmImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO gfatm_location_attribute_type SELECT * FROM tmp_gfatm_location_attribute_type AS t WHERE NOT EXISTS (SELECT * FROM gfatm_location_attribute_type WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			insertQuery = "INSERT IGNORE INTO gfatm_location_attribute_type SELECT * FROM tmp_gfatm_location_attribute_type AS t WHERE NOT EXISTS (SELECT * FROM gfatm_location_attribute_type WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
 			updateQuery = "UPDATE gfatm_location_attribute_type AS a, tmp_gfatm_location_attribute_type AS t "
@@ -140,7 +140,7 @@ public class GfatmImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO gfatm_location SELECT * FROM tmp_gfatm_location AS t WHERE NOT EXISTS (SELECT * FROM gfatm_location WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			insertQuery = "INSERT IGNORE INTO gfatm_location SELECT * FROM tmp_gfatm_location AS t WHERE NOT EXISTS (SELECT * FROM gfatm_location WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
 			updateQuery = "UPDATE gfatm_location AS a, tmp_gfatm_location AS t "
@@ -149,15 +149,17 @@ public class GfatmImportController extends AbstractImportController {
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
 			// Location Attribute
-			insertQuery = "INSERT INTO gfatm_location_attribute () VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'" + implementationId + "',  FROM "
-					+ database + ".gfatm_location_attribute AS t "
+			insertQuery = "INSERT INTO tmp_gfatm_location_attribute (surrogate_id, implementation_id, location_attribute_id, attribute_type_id, location_id, attribute_value, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'"
+					+ implementationId
+					+ "', location_attribute_id, attribute_type_id, location_id, attribute_value, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+					+ database + ".location_attribute AS t "
 					+ filter("t.date_created", "t.date_changed");
-			log.info("Inserting data from gfatm_location_attribute into data warehouse");
+			log.info("Inserting data from location_attribute into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO gfatm_location_attribute SELECT * FROM tmp_gfatm_location_attribute AS t WHERE NOT EXISTS (SELECT * FROM gfatm_location_attribute WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			insertQuery = "INSERT IGNORE INTO gfatm_location_attribute SELECT * FROM tmp_gfatm_location_attribute AS t WHERE NOT EXISTS (SELECT * FROM gfatm_location_attribute WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
 			updateQuery = "UPDATE gfatm_location_attribute AS a, tmp_gfatm_location_attribute AS t "
@@ -166,9 +168,6 @@ public class GfatmImportController extends AbstractImportController {
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
 			e.printStackTrace();
-		} finally {
-			// User forms exist in separate database
-			remoteDb.setDbName("openmrs");
 		}
 	}
 
@@ -191,30 +190,102 @@ public class GfatmImportController extends AbstractImportController {
 		String selectQuery;
 
 		try {
-			// User Form Type
-			insertQuery = "INSERT INTO tmp_gfatm_user_form_type (surrogate_id, implementation_id, user_form_type_id, user_form_type, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid, description) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+			// Users
+			insertQuery = "INSERT INTO tmp_gfatm_users (surrogate_id, implementation_id, user_id, username, full_name, global_data_access, disabled, reason_disabled, password_hash, password_salt, secret_question, secret_answer_hash, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'"
 					+ implementationId
-					+ "', user_form_type_id, user_form_type, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid, description FROM "
-					+ database + ".user_form_type AS t "
+					+ "', user_id, username, full_name, global_data_access, disabled, reason_disabled, password_hash, password_salt, secret_question, secret_answer_hash, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+					+ database + ".users AS t "
 					+ filter("t.date_created", "t.date_changed");
-			log.info("Inserting data from gfatm_user_form_type into data warehouse");
+			log.info("Inserting data from users into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO gfatm_user_form_type SELECT * FROM tmp_gfatm_user_form_type AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_form_type WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			insertQuery = "INSERT IGNORE INTO gfatm_users SELECT * FROM tmp_gfatm_users AS t WHERE NOT EXISTS (SELECT * FROM gfatm_users WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
-			updateQuery = "UPDATE gfatm_user_form_type AS a, tmp_gfatm_user_form_type AS t "
-					+ "SET a.user_form_type_id = t.user_form_type_id, a.user_form_type = t.user_form_type, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at, a.description = t.description WHERE a.implementation_id = t.implementation_id = '"
+			updateQuery = "UPDATE gfatm_users AS a, tmp_gfatm_users AS t "
+					+ "SET a.user_id = t.user_id, a.username = t.username, a.full_name = t.full_name, a.global_data_access = t.global_data_access, a.disabled = t.disabled, a.reason_disabled = t.reason_disabled, a.password_hash = t.password_hash, a.password_salt = t.password_salt, a.secret_question = t.secret_question, a.secret_answer_hash = t.secret_answer_hash, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// User Attribute Types
+			insertQuery = "INSERT INTO tmp_gfatm_user_attribute_type (surrogate_id, implementation_id, user_attribute_type_id, attribute_name, data_type, date_changed, date_created, description, required, validation_regex, changed_at, created_at, changed_by, created_by, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'"
+					+ implementationId
+					+ "', user_attribute_type_id, attribute_name, data_type, date_changed, date_created, description, required, validation_regex, changed_at, created_at, changed_by, created_by, uuid FROM "
+					+ database + ".user_attribute_type AS t "
+					+ filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from user_attribute_type into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery,
+					remoteDb.getConnection(), targetDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT IGNORE INTO gfatm_user_attribute_type SELECT * FROM tmp_gfatm_user_attribute_type AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_attribute_type WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE gfatm_user_attribute_type AS a, tmp_gfatm_user_attribute_type AS t "
+					+ "SET a.user_attribute_type_id = t.user_attribute_type_id, a.attribute_name = t.attribute_name, a.data_type = t.data_type, a.date_changed = t.date_changed, a.date_created = t.date_created, a.description = t.description, a.required = t.required WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
+			// User Attributes
+			insertQuery = "INSERT INTO tmp_gfatm_user_attribute (surrogate_id, implementation_id, user_attribute_id, attribute_value, date_changed, date_created, changed_at, created_at, user_attribute_type_id, user_id, changed_by, created_by, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'"
+					+ implementationId
+					+ "', user_attribute_id, attribute_value, date_changed, date_created, changed_at, created_at, user_attribute_type_id, user_id, changed_by, created_by, uuid FROM "
+					+ database + ".user_attribute AS t "
+					+ filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from user_attribute into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery,
+					remoteDb.getConnection(), targetDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT IGNORE INTO gfatm_user_attribute SELECT * FROM tmp_gfatm_user_attribute AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_attribute WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE gfatm_user_attribute AS a, tmp_gfatm_user_attribute AS t "
+					+ "SET a.user_attribute_id = t.user_attribute_id, a.attribute_value = t.attribute_value, a.date_changed = t.date_changed, a.date_created = t.date_created, a.changed_at = t.changed_at, a.created_at = t.created_at, a.user_attribute_type_id = t.user_attribute_type_id, a.user_id = t.user_id, a.changed_by = t.changed_by, a.created_by = t.created_by WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
+			// User Roles
+			insertQuery = "INSERT INTO tmp_gfatm_user_role (surrogate_id, implementation_id, user_id, role_id, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'"
+					+ implementationId
+					+ "', user_id, role_id, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+					+ database + ".user_role AS t "
+					+ filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from user_role into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery,
+					remoteDb.getConnection(), targetDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT IGNORE INTO gfatm_user_role SELECT * FROM gfatm_user_role AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_role WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE gfatm_user_role AS a, tmp_gfatm_user_role AS t "
+					+ "SET a.user_id = t.user_id, a.role_id = t.role_id, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
+			// User Locations
+			insertQuery = "INSERT INTO tmp_gfatm_user_location (surrogate_id, implementation_id, user_id, location_id, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'"
+					+ implementationId
+					+ "', user_id, location_id, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+					+ database + ".user_location AS t "
+					+ filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from user_location into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery,
+					remoteDb.getConnection(), targetDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT IGNORE INTO gfatm_user_location SELECT * FROM tmp_gfatm_user_location AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_location WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE gfatm_user_location AS a, tmp_gfatm_user_location AS t "
+					+ "SET a.user_id = t.user_id, a.location_id = t.location_id, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
 			e.printStackTrace();
-		} finally {
-			// User forms exist in separate database
-			remoteDb.setDbName("openmrs");
 		}
 	}
 
@@ -237,20 +308,37 @@ public class GfatmImportController extends AbstractImportController {
 		String selectQuery;
 
 		try {
-			// User forms exist in separate database
-			database = "gfatm";
-			// User Form Type
+			// Elements
+			insertQuery = "INSERT INTO tmp_gfatm_element (surrogate_id, implementation_id, element_id, element_name, validation_regex, data_type, description, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'"
+					+ implementationId
+					+ "', element_id, element_name, validation_regex, data_type, description, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+					+ database + ".element AS t "
+					+ filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from element into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery,
+					remoteDb.getConnection(), targetDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT IGNORE INTO gfatm_element SELECT * FROM tmp_gfatm_element AS t WHERE NOT EXISTS (SELECT * FROM gfatm_element WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE gfatm_element AS a, tmp_gfatm_element AS t "
+					+ "SET a.element_id = t.element_id, a.element_name = t.element_name, a.validation_regex = t.validation_regex, a.data_type = t.data_type, a.description = t.description, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
+			// User Form Types
 			insertQuery = "INSERT INTO tmp_gfatm_user_form_type (surrogate_id, implementation_id, user_form_type_id, user_form_type, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid, description) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'"
 					+ implementationId
 					+ "', user_form_type_id, user_form_type, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid, description FROM "
 					+ database + ".user_form_type AS t "
 					+ filter("t.date_created", "t.date_changed");
-			log.info("Inserting data from gfatm_user_form_type into data warehouse");
+			log.info("Inserting data from user_form_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO gfatm_user_form_type SELECT * FROM tmp_gfatm_user_form_type AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_form_type WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			insertQuery = "INSERT IGNORE INTO gfatm_user_form_type SELECT * FROM tmp_gfatm_user_form_type AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_form_type WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
 			updateQuery = "UPDATE gfatm_user_form_type AS a, tmp_gfatm_user_form_type AS t "
@@ -258,11 +346,45 @@ public class GfatmImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// User Forms
+			insertQuery = "INSERT INTO tmp_gfatm_user_form (surrogate_id, implementation_id, user_form_id, user_form_type_id, user_id, duration_seconds, date_entered, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'"
+					+ implementationId
+					+ "', user_form_id, user_form_type_id, user_id, duration_seconds, date_entered, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+					+ database + ".user_form AS t "
+					+ filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from user_form into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery,
+					remoteDb.getConnection(), targetDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT IGNORE INTO gfatm_user_form SELECT * FROM tmp_gfatm_user_form AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_form WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE gfatm_user_form AS a, tmp_gfatm_user_form AS t "
+					+ "SET a.user_form_id = t.user_form_id, a.user_form_type_id = t.user_form_type_id, a.user_id = t.user_id, a.duration_seconds = t.duration_seconds, a.date_entered = t.date_entered, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
+			// User Form Results
+			insertQuery = "INSERT INTO tmp_gfatm_user_form_result (surrogate_id, implementation_id, user_form_result_id, user_form_id, element_id, result, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'"
+					+ implementationId
+					+ "', user_form_result_id, user_form_id, element_id, result, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+					+ database + ".user_form_result AS t "
+					+ filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from user_form_result into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery,
+					remoteDb.getConnection(), targetDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT IGNORE INTO gfatm_user_form_result SELECT * FROM tmp_gfatm_user_form_result AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_form_result WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE gfatm_user_form_result AS a, tmp_gfatm_user_form_result AS t "
+					+ "SET a.user_form_result_id = t.user_form_result_id, a.user_form_id = t.user_form_id, a.element_id = t.element_id, a.result = t.result, a.date_created = t.date_created, a.created_by = t.created_by, a.created_at = t.created_at, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.changed_at = t.changed_at WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
 			e.printStackTrace();
-		} finally {
-			// User forms exist in separate database
-			remoteDb.setDbName("openmrs");
 		}
 	}
 }

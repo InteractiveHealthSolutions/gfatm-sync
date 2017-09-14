@@ -97,11 +97,13 @@ public class DataWarehouseMain {
 			String dbName = source[3].toString();
 			String username = source[4].toString();
 			String password = source[5].toString();
-			if (source[6] == null) {
-				source[6] = new String("2000-01-01 00:00:00");
+			if (source[7] == null) {
+				source[7] = new String("2000-01-01 00:00:00");
 			}
-			DatabaseUtil sourceDb = new DatabaseUtil(url, dbName, driverName,
+			DatabaseUtil openbMrsDb = new DatabaseUtil(url, dbName, driverName,
 					username, password);
+			DatabaseUtil gfatmMrsDb = new DatabaseUtil(url, "gfatm",
+					driverName, username, password);
 			try {
 				// Date dateCreated =
 				// DateTimeUtil.getDateFromString(source[6].toString(),
@@ -109,11 +111,10 @@ public class DataWarehouseMain {
 				Date lastUpdated = DateTimeUtil.getDateFromString(
 						source[7].toString(), DateTimeUtil.SQL_DATETIME);
 				OpenMrsImportController openMrsImportController = new OpenMrsImportController(
-						sourceDb, dwObj.localDb, lastUpdated, new Date());
+						openbMrsDb, dwObj.localDb, lastUpdated, new Date());
 				GfatmImportController gfatmImportController = new GfatmImportController(
-						sourceDb, dwObj.localDb, lastUpdated, new Date());
+						gfatmMrsDb, dwObj.localDb, lastUpdated, new Date());
 				// Update status of implementation record
-				/* Enable on production */
 				dwObj.localDb.updateRecord("_implementation",
 						new String[] { "status" }, new String[] { "RUNNING" },
 						"implementation_id='" + implementationId + "'");
@@ -143,7 +144,14 @@ public class DataWarehouseMain {
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {
-				// TODO: Update the status in _implementation
+				try {
+					dwObj.localDb.updateRecord("_implementation",
+							new String[] { "status" },
+							new String[] { "STOPPED" }, "implementation_id='"
+									+ implementationId + "'");
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 		}
 		System.exit(0);

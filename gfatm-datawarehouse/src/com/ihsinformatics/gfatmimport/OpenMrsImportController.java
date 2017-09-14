@@ -130,7 +130,7 @@ public class OpenMrsImportController extends AbstractImportController {
 		try {
 			tableName = "person";
 			// insert into temp_person table...
-			insertQuery = "INSERT INTO tmp_"
+			insertQuery = "INSERT  INTO tmp_"
 					+ tableName
 					+ " (surrogate_id, implementation_id, person_id, gender, birthdate, birthdate_estimated, dead, death_date, cause_of_death, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'"
@@ -143,7 +143,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -175,7 +175,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into person_attribute_type
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -204,7 +204,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -233,7 +233,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -262,7 +262,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -312,7 +312,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -342,9 +342,10 @@ public class OpenMrsImportController extends AbstractImportController {
 			deleteQuery = "DELETE FROM " + tableName
 					+ " WHERE implementation_id = '" + implementationId + "'";
 			targetDb.runCommand(CommandType.DELETE, deleteQuery);
-			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
-					+ tableName + " AS t WHERE t.implementation_id = '"
-					+ implementationId + "'";
+			insertQuery = "INSERT IGNORE INTO " + tableName
+					+ " SELECT * FROM tmp_" + tableName
+					+ " AS t WHERE t.implementation_id = '" + implementationId
+					+ "'";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 
 			tableName = "privilege";
@@ -358,7 +359,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ "  into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -388,9 +389,10 @@ public class OpenMrsImportController extends AbstractImportController {
 			deleteQuery = "DELETE FROM " + tableName
 					+ " WHERE implementation_id = '" + implementationId + "'";
 			targetDb.runCommand(CommandType.DELETE, deleteQuery);
-			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
-					+ tableName + " AS t WHERE t.implementation_id = '"
-					+ implementationId + "'";
+			insertQuery = "INSERT IGNORE INTO " + tableName
+					+ " SELECT * FROM tmp_" + tableName
+					+ " AS t WHERE t.implementation_id = '" + implementationId
+					+ "'";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 
 			tableName = "users";
@@ -406,7 +408,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -436,9 +438,10 @@ public class OpenMrsImportController extends AbstractImportController {
 			deleteQuery = "DELETE FROM " + tableName
 					+ " WHERE implementation_id = '" + implementationId + "'";
 			targetDb.runCommand(CommandType.DELETE, deleteQuery);
-			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
-					+ tableName + " AS t WHERE t.implementation_id = '"
-					+ implementationId + "'";
+			insertQuery = "INSERT IGNORE INTO " + tableName
+					+ " SELECT * FROM tmp_" + tableName
+					+ " AS t WHERE t.implementation_id = '" + implementationId
+					+ "'";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 
 			tableName = "user_role";
@@ -455,9 +458,10 @@ public class OpenMrsImportController extends AbstractImportController {
 			deleteQuery = "DELETE FROM " + tableName
 					+ " WHERE implementation_id = '" + implementationId + "'";
 			targetDb.runCommand(CommandType.DELETE, deleteQuery);
-			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
-					+ tableName + " AS t WHERE t.implementation_id = '"
-					+ implementationId + "'";
+			insertQuery = "INSERT IGNORE INTO " + tableName
+					+ " SELECT * FROM tmp_" + tableName
+					+ " AS t WHERE t.implementation_id = '" + implementationId
+					+ "'";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 
 			tableName = "provider_attribute_type";
@@ -473,7 +477,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -502,7 +506,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -531,7 +535,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -584,7 +588,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ ".location_attribute_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -599,6 +603,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " AS t SET a. location_attribute_type_id=t. location_attribute_type_id,a. name=t. name,a. description=t. description,a. datatype=t. datatype,a. datatype_config=t. datatype_config,a. preferred_handler=t. preferred_handler,a. handler_config=t. handler_config,a. min_occurs=t. min_occurs,a. max_occurs=t. max_occurs,a. creator=t. creator,a. date_created=t. date_created,a. changed_by=t. changed_by,a. date_changed=t. date_changed,a. retired=t. retired,a. retired_by=t. retired_by,a. date_retired=t. date_retired,a. retire_reason=t. retire_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
 			// Location
 			tableName = "location";
 			insertQuery = "INSERT INTO tmp_"
@@ -614,7 +619,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -646,7 +651,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -677,7 +682,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -706,9 +711,9 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table
-			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
-					+ tableName + " AS t WHERE NOT EXISTS (SELECT * FROM "
-					+ tableName
+			insertQuery = "INSERT IGNORE INTO " + tableName
+					+ " SELECT * FROM tmp_" + tableName
+					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			updateQuery = "UPDATE "
@@ -756,7 +761,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -788,7 +793,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table...
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -820,7 +825,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table...
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -852,7 +857,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table...
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -884,7 +889,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table...
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -916,7 +921,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table...
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -948,7 +953,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table...
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -980,7 +985,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table...
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1014,8 +1019,8 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table...
-			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
-					+ tableName
+			insertQuery = "INSERT IGNORE INTO " + tableName
+					+ " SELECT * FROM tmp_" + tableName
 					+ " AS t WHERE concept_id NOT IN (SELECT concept_id FROM "
 					+ tableName
 					+ " WHERE implementation_id = t.implementation_id)";
@@ -1068,7 +1073,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1100,9 +1105,9 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO " + tableName + " SELECT * FROM tmp_"
-					+ tableName + " AS t WHERE NOT EXISTS (SELECT * FROM "
-					+ tableName
+			insertQuery = "INSERT IGNORE INTO " + tableName
+					+ " SELECT * FROM tmp_" + tableName
+					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
@@ -1129,7 +1134,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1161,7 +1166,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1216,7 +1221,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1248,7 +1253,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1280,7 +1285,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1312,7 +1317,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1355,7 +1360,7 @@ public class OpenMrsImportController extends AbstractImportController {
 
 			}
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1434,7 +1439,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1466,7 +1471,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1498,7 +1503,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1556,7 +1561,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1587,7 +1592,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1619,7 +1624,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName
@@ -1651,7 +1656,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT INTO "
+			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
 					+ " SELECT * FROM tmp_"
 					+ tableName

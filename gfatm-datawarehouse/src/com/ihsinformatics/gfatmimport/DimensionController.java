@@ -46,7 +46,7 @@ public class DimensionController {
 		Object[][] sources = db.getTableData("_implementation",
 				"implementation_id", "active=1 AND status='STOPPED' "
 						+ "AND date(last_updated) = current_date()");
-		// For each source, import all data
+		// For each source, model dimensions
 		// TODO: Restrict by date
 		for (Object[] source : sources) {
 			int implementationId = Integer.parseInt(source[0].toString());
@@ -88,6 +88,17 @@ public class DimensionController {
 		}
 		try {
 			encounterAndObsDimension(from, to, implementationId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			userFormAndResultDimension(from, to, implementationId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			deencounterizeOpenMrs();
+			deencounterizeGfatm();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -541,13 +552,122 @@ public class DimensionController {
 		query.append("set o.answer = t.answer ");
 		query.append("where o.implementation_id = t.implementation_id and o.obs_id = t.obs_group_id");
 		db.runCommand(CommandType.UPDATE, query.toString());
-		deencounterize();
 	}
 
 	/**
-	 * Transforms the encounters and observations into separate tables
+	 * Fill in user forms results in respective dimensions
+	 * 
+	 * @throws InstantiationException
+	 * @throws IllegalAccessException
+	 * @throws ClassNotFoundException
 	 */
-	public void deencounterize() {
+	public void userFormAndResultDimension(Date from, Date to,
+			int implementationId) throws InstantiationException,
+			IllegalAccessException, ClassNotFoundException {
+		// Fill the encounter dimension data
+		StringBuilder query = new StringBuilder(
+				"insert ignore into dim_user_form ");
+		query.append("select ut.surrogate_id, ut.implementation_id, ut.user_form_id, uft.user_form_type_id, uft.user_form_type, uft.description, ut.user_id, ut.created_at as location_id, ut.date_entered, ut.date_created, ut.changed_by, ut.date_changed, ut.uuid from gfatm_user_form as ut ");
+		query.append("inner join gfatm_user_form_type as uft on uft.user_form_type_id = ut.user_form_type_id ");
+		StringBuilder filter = new StringBuilder(" where 1=1 ");
+		filter.append("and (ut.date_created between timestamp('"
+				+ DateTimeUtil.getSqlDateTime(from) + "') ");
+		filter.append("and timestamp('" + DateTimeUtil.getSqlDateTime(to)
+				+ "')) ");
+		filter.append(" or (ut.date_changed between timestamp('"
+				+ DateTimeUtil.getSqlDateTime(from) + "') ");
+		filter.append("and timestamp('" + DateTimeUtil.getSqlDateTime(to)
+				+ "')) ");
+		query.append(filter.toString());
+		log.info("Inserting new user forms to dimension.");
+		db.runCommand(CommandType.INSERT, query.toString());
+
+		// Fill the user form results dimension data
+		filter = new StringBuilder(" where 1=1 ");
+		filter.append("and (ufr.date_created between timestamp('"
+				+ DateTimeUtil.getSqlDateTime(from) + "') ");
+		filter.append("and timestamp('" + DateTimeUtil.getSqlDateTime(to)
+				+ "')) ");
+		query = new StringBuilder("insert ignore into dim_user_form_result ");
+		query.append("select ufr.surrogate_id, ufr.implementation_id, uf.user_form_type_id, ufr.user_form_result_id, ufr.user_form_id, ufr.element_id, e.element_name as question, ufr.result as answer, ufr.created_by as user_id, ufr.created_at as location_id, uf.date_entered, ufr.date_created, ufr.changed_by, ufr.date_changed, ufr.uuid from gfatm_user_form_result as ufr ");
+		query.append("inner join gfatm_user_form as uf on uf.user_form_id = ufr.user_form_id ");
+		query.append("inner join gfatm_element as e on e.element_id = ufr.element_id");
+		query.append(filter.toString());
+		log.info("Inserting new user form results to dimension.");
+		db.runCommand(CommandType.INSERT, query.toString());
+	}
+
+	public void deencounterizeGfatm() {
+		// Create a temporary table to save questions for each user form type
+		db.runCommand(CommandType.DROP, "drop table if exists tmp");
+		db.runCommand(
+				CommandType.CREATE,
+				"create table tmp select distinct user_form_type_id, element_id, question from dim_user_form_result");
+		// Fetch user form types and names
+		Object[][] userFormTypes = db.getTableData("dim_user_form",
+				"distinct user_form_type_id, user_form_type", null);
+		if (userFormTypes == null) {
+			log.severe("User Form types could not be fetched");
+			return;
+		}
+		for (Object[] userFormType : userFormTypes) {
+			StringBuilder query = new StringBuilder();
+			// Create a de-encounterized table
+			Object[][] data = db.getTableData("tmp", "question",
+					"user_form_type_id=" + userFormType[0].toString());
+			ArrayList<String> elements = new ArrayList<String>();
+			for (int i = 0; i < data.length; i++) {
+				if (data[i][0] == null) {
+					continue;
+				}
+				elements.add(data[i][0].toString());
+			}
+			StringBuilder groupConcat = new StringBuilder();
+			for (Object element : elements) {
+				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_")
+						.toLowerCase();
+				groupConcat.append("group_concat(if(ufr.question = '" + element
+						+ "', ufr.answer, NULL)) AS " + str + ", ");
+			}
+			String userFormName = userFormType[1].toString().toLowerCase()
+					.replace(" ", "_").replace("-", "_");
+			query.append("create table uform_" + userFormName + " ");
+			query.append("select uf.surrogate_id, uf.implementation_id, uf.user_form_id, uf.user_id, u.username, uf.location_id, l.location_name, uf.date_entered, ");
+			query.append(groupConcat.toString());
+			query.append("'' as BLANK from dim_user_form as uf ");
+			query.append("inner join dim_user_form_result as ufr on ufr.user_form_id = uf.user_form_id ");
+			query.append("left outer join gfatm_users as u on u.implementation_id = uf.implementation_id and u.user_id = uf.user_id ");
+			query.append("left outer join gfatm_location as l on l.implementation_id = uf.implementation_id and l.location_id = uf.location_id ");
+			query.append("where uf.user_form_type_id = '"
+					+ userFormType[0].toString() + "' ");
+			query.append("group by uf.surrogate_id, uf.implementation_id, uf.user_form_id, uf.user_id, u.username, uf.location_id, l.location_name, uf.date_entered");
+			// Drop previous table
+			db.runCommand(CommandType.DROP, "drop table if exists uform_"
+					+ userFormName);
+			log.info("Generating table for " + userFormType[1].toString());
+			try {
+				// Insert new data
+				Object result = db.runCommand(CommandType.CREATE,
+						query.toString());
+				if (result == null) {
+					log.warning("No data imported for User Form "
+							+ userFormType[1].toString());
+				}
+				// Creating Primary key
+				db.runCommand(CommandType.ALTER, "alter table uform_"
+						+ userFormName
+						+ " add primary key surrogate_id (surrogate_id)");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	/**
+	 * Transforms the encounters, observations and forms data into separate
+	 * tables
+	 */
+	public void deencounterizeOpenMrs() {
 		// Create a temporary table to save questions for each encounter type
 		db.runCommand(CommandType.DROP, "drop table if exists tmp");
 		db.runCommand(
@@ -596,15 +716,21 @@ public class DimensionController {
 			db.runCommand(CommandType.DROP, "drop table if exists enc_"
 					+ encounterName);
 			log.info("Generating table for " + encounterType[1].toString());
-			// Insert new data
-			Object result = db.runCommand(CommandType.CREATE, query.toString());
-			if (result == null) {
-				log.warning("No data imported for Encounter "
-						+ encounterType[1].toString());
+			try {
+				// Insert new data
+				Object result = db.runCommand(CommandType.CREATE,
+						query.toString());
+				if (result == null) {
+					log.warning("No data imported for Encounter "
+							+ encounterType[1].toString());
+				}
+				// Creating Primary key
+				db.runCommand(CommandType.ALTER, "alter table enc_"
+						+ encounterName
+						+ " add primary key surrogate_id (surrogate_id)");
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
-			// Creating Primary key
-			db.runCommand(CommandType.ALTER, "alter table enc_" + encounterName
-					+ " add primary key surrogate_id (surrogate_id)");
 		}
 	}
 }

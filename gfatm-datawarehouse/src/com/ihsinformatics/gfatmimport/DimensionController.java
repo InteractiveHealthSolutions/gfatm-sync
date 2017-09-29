@@ -44,8 +44,7 @@ public class DimensionController {
 		from.set(2000, 0, 1);
 		Calendar to = Calendar.getInstance();
 		Object[][] sources = db.getTableData("_implementation",
-				"implementation_id", "active=1 AND status='STOPPED' "
-						+ "AND date(last_updated) = current_date()");
+				"implementation_id", "active=1 AND status='RUNNING'");
 		// For each source, model dimensions
 		// TODO: Restrict by date
 		for (Object[] source : sources) {
@@ -68,11 +67,6 @@ public class DimensionController {
 		}
 		try {
 			locationDimension(from, to, implementationId);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		try {
-			userDimension(from, to, implementationId);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -602,7 +596,7 @@ public class DimensionController {
 		db.runCommand(CommandType.DROP, "drop table if exists tmp");
 		db.runCommand(
 				CommandType.CREATE,
-				"create table tmp select distinct user_form_type_id, element_id, question from dim_user_form_result");
+				"create table tmp select distinct user_form_type_id, element_id, element_name as question from dim_user_form_result");
 		// Fetch user form types and names
 		Object[][] userFormTypes = db.getTableData("dim_user_form",
 				"distinct user_form_type_id, user_form_type", null);
@@ -626,8 +620,8 @@ public class DimensionController {
 			for (Object element : elements) {
 				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_")
 						.toLowerCase();
-				groupConcat.append("group_concat(if(ufr.question = '" + element
-						+ "', ufr.answer, NULL)) AS " + str + ", ");
+				groupConcat.append("group_concat(if(ufr.element_name = '" + element
+						+ "', ufr.result, NULL)) AS " + str + ", ");
 			}
 			String userFormName = userFormType[1].toString().toLowerCase()
 					.replace(" ", "_").replace("-", "_");

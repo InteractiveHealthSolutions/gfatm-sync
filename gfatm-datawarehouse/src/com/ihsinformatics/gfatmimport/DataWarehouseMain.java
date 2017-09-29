@@ -128,13 +128,6 @@ public class DataWarehouseMain {
 					gfatmImportController.importData(implementationId);
 					openMrsImportController.importData(implementationId);
 				}
-				// Update the status in _implementation table
-				dwObj.localDb
-						.updateRecord("_implementation",
-								new String[] { "last_updated" },
-								new String[] { DateTimeUtil
-										.getSqlDateTime(new Date()) },
-								"implementation_id='" + implementationId + "'");
 				DimensionController dimController = new DimensionController(
 						dwObj.localDb);
 				dimController.modelDimensions();
@@ -145,6 +138,7 @@ public class DataWarehouseMain {
 				e.printStackTrace();
 			} finally {
 				try {
+					// Update the status in _implementation table
 					dwObj.localDb.updateRecord("_implementation",
 							new String[] { "status" },
 							new String[] { "STOPPED" }, "implementation_id='"

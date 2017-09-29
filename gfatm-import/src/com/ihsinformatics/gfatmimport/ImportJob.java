@@ -101,6 +101,12 @@ public class ImportJob implements Job {
 			statement.execute("SET FOREIGN_KEY_CHECKS=0");
 		} catch (SQLException e1) {
 			e1.printStackTrace();
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
 		}
 		if (isImportUsers() && GfatmImportMain.mode != ImportStatus.STOPPED) {
 			try {
@@ -147,6 +153,12 @@ public class ImportJob implements Job {
 			statement.execute("SET FOREIGN_KEY_CHECKS=1");
 		} catch (SQLException e1) {
 			e1.printStackTrace();
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
 		}
 		GfatmImportMain.gfatmImport.updateProgress(progressRange);
 		GfatmImportMain.gfatmImport.setMode(ImportStatus.WAITING);
@@ -877,15 +889,7 @@ public class ImportJob implements Job {
 	public void localInsert(String insertQuery) {
 		GfatmImportMain.gfatmImport
 				.log("Executing: " + insertQuery, Level.INFO);
-		try {
-			getLocalDb().runCommand(CommandType.INSERT, insertQuery);
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
+		getLocalDb().runCommand(CommandType.INSERT, insertQuery);
 	}
 
 	public DatabaseUtil getLocalDb() {

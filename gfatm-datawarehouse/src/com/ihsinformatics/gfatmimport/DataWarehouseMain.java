@@ -174,7 +174,12 @@ public class DataWarehouseMain {
 						.getProperty("local.connection.password");
 				localDb.setConnection(url, dwSchema, driverName, username,
 						password);
-				System.out.println(localDb.tryConnection());
+				System.out.println("Local DB settings...");
+				System.out.println("URL: " + localDb.getUrl());
+				System.out.println("DB Name: " + localDb.getDbName());
+				System.out.println("Driver: " + localDb.getDriverName());
+				System.out.println("Username: " + localDb.getUsername());
+				System.out.println("Trying to connect... " + localDb.tryConnection());
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

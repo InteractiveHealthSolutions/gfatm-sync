@@ -13,6 +13,7 @@ package com.ihsinformatics.gfatmimport;
 
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.logging.Logger;
 
@@ -365,17 +366,24 @@ public class GfatmImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
-			// User Form Results
-			insertQuery = "INSERT INTO tmp_gfatm_user_form_result (surrogate_id, implementation_id, user_form_result_id, user_form_id, element_id, result, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'"
-					+ implementationId
-					+ "', user_form_result_id, user_form_id, element_id, result, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
-					+ database + ".user_form_result AS t "
-					+ filter("t.date_created", "t.date_changed");
-			log.info("Inserting data from user_form_result into data warehouse");
-			remoteSelectInsert(selectQuery, insertQuery,
-					remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
+			// Data is too much to handle in single query, so import in batches
+			// Get all unique dates from within the date range
+			Object[][] dateData = remoteDb.getTableData(database + ".user_form_result",
+					"DATE(date_created)", filter("date_created", null), true);
+			ArrayList<String> dates = new ArrayList<String>();
+			for (Object[] date : dateData) {
+				dates.add(date[0].toString());
+			}
+			for (String date : dates) {
+				log.info("Inserting data from user_form_result into data warehouse for date " + date);
+				insertQuery = "INSERT INTO tmp_gfatm_user_form_result (surrogate_id, implementation_id, user_form_result_id, user_form_id, element_id, result, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+				selectQuery = "SELECT 0,'"
+						+ implementationId
+						+ "', user_form_result_id, user_form_id, element_id, result, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+						+ database + ".user_form_result AS t WHERE DATE(t.date_created) = '" + date + "'";
+				remoteSelectInsert(selectQuery, insertQuery,
+						remoteDb.getConnection(), targetDb.getConnection());
+			}
 			insertQuery = "INSERT IGNORE INTO gfatm_user_form_result SELECT * FROM tmp_gfatm_user_form_result AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_form_result WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records

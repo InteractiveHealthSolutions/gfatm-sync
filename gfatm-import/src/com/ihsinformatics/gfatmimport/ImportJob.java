@@ -584,7 +584,7 @@ public class ImportJob implements Job {
 		selectQuery = "SELECT form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid FROM form_field "
 				+ filter("date_created", "date_changed") + " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
-		insertQuery = "INSERT IGNORE INTO form_field(form_field_id,orm_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid) SELECT form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid FROM temp_form_field";
+		insertQuery = "INSERT IGNORE INTO form_field(form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid) SELECT form_field_id,form_id,field_id,field_number,field_part,page_number,parent_form_field,min_occurs,max_occurs,required,changed_by,date_changed,creator,date_created,sort_weight,uuid FROM temp_form_field";
 		localInsert(insertQuery);
 
 		// hl7_source
@@ -835,12 +835,12 @@ public class ImportJob implements Job {
 
 	public void createTempTable(DatabaseUtil db, String sourceTable) {
 		try {
-			String query = "DROP TABLE IF EXISTS temp_" + sourceTable;
+			String query = "TRUNCATE TABLE temp_" + sourceTable;
 			db.runCommand(CommandType.DROP, query);
 			GfatmImportMain.gfatmImport.log("Executing: " + query, Level.INFO);
-			query = "CREATE TABLE temp_" + sourceTable + " LIKE " + sourceTable;
-			db.runCommand(CommandType.CREATE, query);
-			GfatmImportMain.gfatmImport.log("Executing: " + query, Level.INFO);
+//			query = "CREATE TABLE temp_" + sourceTable + " LIKE " + sourceTable;
+//			db.runCommand(CommandType.CREATE, query);
+//			GfatmImportMain.gfatmImport.log("Executing: " + query, Level.INFO);
 		} catch (Exception e) {
 			e.printStackTrace();
 			GfatmImportMain.gfatmImport.log("Exception while executing query: "

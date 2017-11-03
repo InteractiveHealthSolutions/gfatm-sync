@@ -14,7 +14,6 @@ package com.ihsinformatics.gfatmimport;
 import java.sql.SQLException;
 import java.util.logging.Logger;
 
-import com.ihsinformatics.gfatmimport.util.SqlExecuteUtil;
 import com.ihsinformatics.util.DatabaseUtil;
 
 /**
@@ -24,21 +23,10 @@ import com.ihsinformatics.util.DatabaseUtil;
 public class FactController {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
-	private static final String factQueriesFile = "fact_queries.sql";
-	private DatabaseUtil db;
-
-	public static void main(String[] args) {
-		DatabaseUtil myDb = new DatabaseUtil();
-		myDb.setConnection(
-				"jdbc:mysql://127.0.0.1:3306/gfatm_dw?autoReconnect=true&useSSL=false",
-				"gfatm_dw", "com.mysql.jdbc.Driver", "root", "jingle94");
-		myDb.tryConnection();
-		FactController fc = new FactController(myDb);
-		fc.modelFacts();
-	}
+	private DatabaseUtil dwDb;
 
 	public FactController(DatabaseUtil db) {
-		this.db = db;
+		this.dwDb = db;
 	}
 
 	/**
@@ -46,10 +34,13 @@ public class FactController {
 	 */
 	public void modelFacts() {
 		try {
-			log.info("Starting fact modeling");
-			SqlExecuteUtil sqlUtil = new SqlExecuteUtil(db.getUrl(),
-					db.getDriverName(), db.getUsername(), db.getPassword());
-			sqlUtil.execute(DataWarehouseMain.resourcePath + factQueriesFile);
+			dwDb.runStoredProcedure("create_datawarehouse", null);
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

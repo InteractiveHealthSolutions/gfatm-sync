@@ -347,16 +347,26 @@ public class GfatmImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			Object[][] dateData;
+			ArrayList<String> dates;
 			// User Forms
-			insertQuery = "INSERT INTO tmp_gfatm_user_form (surrogate_id, implementation_id, user_form_id, user_form_type_id, user_id, duration_seconds, date_entered, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'"
-					+ implementationId
-					+ "', user_form_id, user_form_type_id, user_id, duration_seconds, date_entered, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
-					+ database + ".user_form AS t "
-					+ filter("t.date_created", "t.date_changed");
-			log.info("Inserting data from user_form into data warehouse");
-			remoteSelectInsert(selectQuery, insertQuery,
-					remoteDb.getConnection(), targetDb.getConnection());
+			// Data is too much to handle in single query, so import in batches
+			dateData = remoteDb.getTableData(database + ".user_form",
+					"DATE(date_created)", filter("date_created", null), true);
+			dates = new ArrayList<String>();
+			for (Object[] date : dateData) {
+				dates.add(date[0].toString());
+			}
+			for (String date : dates) {
+				log.info("Inserting data from user_form into data warehouse for date " + date);
+				insertQuery = "INSERT INTO tmp_gfatm_user_form (surrogate_id, implementation_id, user_form_id, user_form_type_id, user_id, duration_seconds, date_entered, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+				selectQuery = "SELECT 0,'"
+						+ implementationId
+						+ "', user_form_id, user_form_type_id, user_id, duration_seconds, date_entered, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
+						+ database + ".user_form AS t WHERE DATE(t.date_created) = '" + date + "'";
+				remoteSelectInsert(selectQuery, insertQuery,
+						remoteDb.getConnection(), targetDb.getConnection());
+			}
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO gfatm_user_form SELECT * FROM tmp_gfatm_user_form AS t WHERE NOT EXISTS (SELECT * FROM gfatm_user_form WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
@@ -366,11 +376,11 @@ public class GfatmImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// User Form Results
 			// Data is too much to handle in single query, so import in batches
-			// Get all unique dates from within the date range
-			Object[][] dateData = remoteDb.getTableData(database + ".user_form_result",
+			dateData = remoteDb.getTableData(database + ".user_form_result",
 					"DATE(date_created)", filter("date_created", null), true);
-			ArrayList<String> dates = new ArrayList<String>();
+			dates = new ArrayList<String>();
 			for (Object[] date : dateData) {
 				dates.add(date[0].toString());
 			}

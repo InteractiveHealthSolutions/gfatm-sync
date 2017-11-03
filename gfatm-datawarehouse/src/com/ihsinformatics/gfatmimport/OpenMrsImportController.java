@@ -1270,18 +1270,30 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// Data is too much to handle in single query; import in batches
 			// Encounter
 			tableName = "encounter";
-			insertQuery = "INSERT INTO tmp_"
-					+ tableName
-					+ " (surrogate_id, implementation_id, encounter_id, encounter_type, patient_id, location_id, form_id, encounter_datetime, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, visit_id, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'"
-					+ implementationId
-					+ "', encounter_id, encounter_type, patient_id, location_id, form_id, encounter_datetime, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, visit_id, uuid FROM "
-					+ database + "." + tableName + " AS t "
-					+ filter("t.date_created", "t.date_changed");
-			log.info("Inserting data from " + database
-					+ ".encounter into data warehouse");
+			Object[][] dateData = remoteDb.getTableData(tableName,
+					"DATE(date_created)", filter("date_created", null), true);
+			ArrayList<String> dates = new ArrayList<String>();
+			for (Object[] date : dateData) {
+				dates.add(date[0].toString());
+			}
+			for (String date : dates) {
+				log.info("Inserting data from " + database + "." + tableName
+						+ " into data warehouse for date " + date);
+				insertQuery = "INSERT INTO tmp_"
+						+ tableName
+						+ " (surrogate_id, implementation_id, encounter_id, encounter_type, patient_id, location_id, form_id, encounter_datetime, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, visit_id, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+				selectQuery = "SELECT 0,'"
+						+ implementationId
+						+ "', encounter_id, encounter_type, patient_id, location_id, form_id, encounter_datetime, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, visit_id, uuid FROM "
+						+ database + "." + tableName
+						+ " AS t WHERE DATE(t.date_created) = '" + date + "'";
+				remoteSelectInsert(selectQuery, insertQuery,
+						remoteDb.getConnection(), targetDb.getConnection());
+
+			}
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
@@ -1304,14 +1316,26 @@ public class OpenMrsImportController extends AbstractImportController {
 
 			// Encounter Provider
 			tableName = "encounter_provider";
-			insertQuery = "INSERT INTO tmp_"
-					+ tableName
-					+ " (surrogate_id, implementation_id, encounter_provider_id, encounter_id, provider_id, encounter_role_id, creator, date_created, changed_by, date_changed, voided, date_voided, voided_by, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-			selectQuery = "SELECT 0,'"
-					+ implementationId
-					+ "', encounter_provider_id, encounter_id, provider_id, encounter_role_id, creator, date_created, changed_by, date_changed, voided, date_voided, voided_by, void_reason, uuid FROM "
-					+ database + "." + tableName + " AS t "
-					+ filter("t.date_created", "t.date_changed");
+			dateData = remoteDb.getTableData(tableName, "DATE(date_created)",
+					filter("date_created", null), true);
+			dates = new ArrayList<String>();
+			for (Object[] date : dateData) {
+				dates.add(date[0].toString());
+			}
+			for (String date : dates) {
+				log.info("Inserting data from " + database + "." + tableName
+						+ " into data warehouse for date " + date);
+				insertQuery = "INSERT INTO tmp_"
+						+ tableName
+						+ " (surrogate_id, implementation_id, encounter_provider_id, encounter_id, provider_id, encounter_role_id, creator, date_created, changed_by, date_changed, voided, date_voided, voided_by, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+				selectQuery = "SELECT 0,'"
+						+ implementationId
+						+ "', encounter_provider_id, encounter_id, provider_id, encounter_role_id, creator, date_created, changed_by, date_changed, voided, date_voided, voided_by, void_reason, uuid FROM "
+						+ database + "." + tableName
+						+ " AS t WHERE DATE(t.date_created) = '" + date + "'";
+				remoteSelectInsert(selectQuery, insertQuery,
+						remoteDb.getConnection(), targetDb.getConnection());
+			}
 			log.info("Inserting data from " + database
 					+ ".encounter_provider into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
@@ -1334,13 +1358,12 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
-			// Observation data is too much to handle in single query, so import
-			// in batches
+			// Observation
 			tableName = "obs";
 			// Get all unique dates from within the date range
-			Object[][] dateData = remoteDb.getTableData(tableName,
-					"DATE(date_created)", filter("date_created", null), true);
-			ArrayList<String> dates = new ArrayList<String>();
+			dateData = remoteDb.getTableData(tableName, "DATE(date_created)",
+					filter("date_created", null), true);
+			dates = new ArrayList<String>();
 			for (Object[] date : dateData) {
 				dates.add(date[0].toString());
 			}
@@ -1357,7 +1380,6 @@ public class OpenMrsImportController extends AbstractImportController {
 						+ " AS t WHERE DATE(t.date_created) = '" + date + "'";
 				remoteSelectInsert(selectQuery, insertQuery,
 						remoteDb.getConnection(), targetDb.getConnection());
-
 			}
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
@@ -1393,37 +1415,12 @@ public class OpenMrsImportController extends AbstractImportController {
 	public void importVisitData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException,
 			ClassNotFoundException {
-
 		String database = remoteDb.getDbName();
 		String insertQuery;
 		String updateQuery;
 		String selectQuery;
 		String tableName;
-
 		try {
-
-			/*
-			 * //Visit tableName= "visit"; insertQuery = "INSERT INTO tmp_"+
-			 * tableName +
-			 * " (surrogate_id, implementation_id, ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-			 * ; selectQuery = "SELECT 0,'" + implementationId + "',  FROM " +
-			 * database + "."+ tableName +" AS t "+ filter("t.date_created",
-			 * null); log.info("Inserting data from " + database +
-			 * ".encounter_type into data warehouse");
-			 * remoteSelectInsert(selectQuery, insertQuery,
-			 * remoteDb.getConnection(), localDb.getConnection()); // Insert new
-			 * records insertQuery = "INSERT INTO " + tableName +
-			 * " SELECT * FROM tmp_" + tableName +
-			 * " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName +
-			 * " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)"
-			 * ; localDb.runCommand(CommandType.INSERT, insertQuery); // Update
-			 * the existing records updateQuery = "UPDATE " + tableName +
-			 * " AS a, tmp_" + tableName +
-			 * " AS t SET  WHERE a.implementation_id = t.implementation_id = '"
-			 * + implementationId + "' AND a.uuid = t.uuid";
-			 * localDb.runCommand(CommandType.UPDATE, updateQuery);
-			 */
-
 			// Visit Type
 			tableName = "visit_type";
 			insertQuery = "INSERT INTO tmp_"

@@ -12,6 +12,7 @@ Interactive Health Solutions, hereby disclaims all copyright interest in this pr
 package com.ihsinformatics.gfatmimport;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
@@ -19,10 +20,8 @@ import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-import com.ihsinformatics.gfatmimport.util.SqlExecuteUtil;
 import com.ihsinformatics.util.DatabaseUtil;
 import com.ihsinformatics.util.DateTimeUtil;
-import com.ihsinformatics.util.VersionUtil;
 
 /**
  * @author owais.hussain@ihsinformatics.com
@@ -31,19 +30,15 @@ import com.ihsinformatics.util.VersionUtil;
 public class DataWarehouseMain {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
-	public static String resourcePath = System.getProperty("user.home")
-			+ File.separatorChar + "gfatm" + File.separatorChar;
-	private static final String createWarehouseFile = "create_datawarehouse.sql";
-	private static final String destroyWarehouseFile = "destroy_datawarehouse.sql";
-	private static final VersionUtil version = new VersionUtil(true, false,
-			false, 0, 1, 1);
-	private static String propertiesFileName = "gfatm-sync.properties";
-	private DatabaseUtil localDb;
+	public static String resourceFilePath = System.getProperty("user.home")
+			+ File.separatorChar + "gfatm" + File.separatorChar
+			+ "gfatm-sync.properties";
+	private DatabaseUtil dwDb;
 	private Properties props;
 	private String dwSchema;
 
 	private DataWarehouseMain() {
-		localDb = new DatabaseUtil();
+		dwDb = new DatabaseUtil();
 		props = new Properties();
 	}
 
@@ -56,22 +51,19 @@ public class DataWarehouseMain {
 		if (args[0] == null || args.length == 0) {
 			System.out
 					.println("Arguments are invalid. Arguments must be provided as:");
-			System.out.println("-p path to resource directory");
+			System.out.println("-u path to resource directory");
+			System.out.println("-p path to database properties file");
 			System.out
-					.println("-r to hard reset warehouse (Extract/Load > Transform > Dimensional modeling > Fact tables)");
+					.println("-r to reset warehouse (ETL > Dimensional modeling > Fact modeling)");
 			System.out
-					.println("-d to create data warehouse dimentions and facts");
+					.println("-d to create data warehouse dimentions and fact tables");
 			System.out.println("-u to update data warehouse (nightly run)");
 			return;
 		}
-		System.out.println(version.toString());
 		boolean doReset = false, doUpdate = false;
 		for (int i = 0; i < args.length; i++) {
 			if (args[i].equals("-p")) {
-				resourcePath = args[i + 1];
-				if (!resourcePath.endsWith(String.valueOf(File.separatorChar))) {
-					resourcePath += String.valueOf(File.separatorChar);
-				}
+				resourceFilePath = args[i + 1];
 			} else if (args[i].equalsIgnoreCase("-r")) {
 				doReset = true;
 			} else if (args[i].equalsIgnoreCase("-u")) {
@@ -84,10 +76,14 @@ public class DataWarehouseMain {
 		}
 		// Read properties file
 		DataWarehouseMain dwObj = new DataWarehouseMain();
-		dwObj.readProperties(propertiesFileName);
+		dwObj.readProperties(resourceFilePath);
 		// Fetch source databases from _implementation table
-		Object[][] sources = dwObj.localDb
+		Object[][] sources = dwObj.dwDb
 				.getTableData("SELECT implementation_id,connection_url,driver,db_name,username,password,date_added,last_updated FROM _implementation WHERE active=1 AND status<>'RUNNING'");
+		if (sources.length == 0) {
+			log.warning("Another instance is already running. Please check the _implementation table for confirmation.");
+			System.exit(-1);
+		}
 		// Import data from each source
 		for (int i = 0; i < sources.length; i++) {
 			Object[] source = sources[i];
@@ -108,14 +104,14 @@ public class DataWarehouseMain {
 				// Date dateCreated =
 				// DateTimeUtil.getDateFromString(source[6].toString(),
 				// DateTimeUtil.SQL_DATETIME);
-				Date lastUpdated = DateTimeUtil.getDateFromString(
-						source[7].toString(), DateTimeUtil.SQL_DATETIME);
+				Date lastUpdated = DateTimeUtil.fromSqlDateTimeString(source[7]
+						.toString());
 				OpenMrsImportController openMrsImportController = new OpenMrsImportController(
-						openbMrsDb, dwObj.localDb, lastUpdated, new Date());
+						openbMrsDb, dwObj.dwDb, lastUpdated, new Date());
 				GfatmImportController gfatmImportController = new GfatmImportController(
-						gfatmMrsDb, dwObj.localDb, lastUpdated, new Date());
+						gfatmMrsDb, dwObj.dwDb, lastUpdated, new Date());
 				// Update status of implementation record
-				dwObj.localDb.updateRecord("_implementation",
+				dwObj.dwDb.updateRecord("_implementation",
 						new String[] { "status" }, new String[] { "RUNNING" },
 						"implementation_id='" + implementationId + "'");
 				if (doReset) {
@@ -129,20 +125,21 @@ public class DataWarehouseMain {
 					openMrsImportController.importData(implementationId);
 				}
 				DimensionController dimController = new DimensionController(
-						dwObj.localDb);
+						dwObj.dwDb);
 				dimController.modelDimensions();
-				FactController factController = new FactController(
-						dwObj.localDb);
+				FactController factController = new FactController(dwObj.dwDb);
 				factController.modelFacts();
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {
 				try {
 					// Update the status in _implementation table
-					dwObj.localDb.updateRecord("_implementation",
-							new String[] { "status" },
-							new String[] { "STOPPED" }, "implementation_id='"
-									+ implementationId + "'");
+					dwObj.dwDb.updateRecord(
+							"_implementation",
+							new String[] { "status", "last_updated" },
+							new String[] { "STOPPED",
+									DateTimeUtil.toSqlDateString(new Date()) },
+							"implementation_id='" + implementationId + "'");
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -156,34 +153,32 @@ public class DataWarehouseMain {
 	 */
 	public void readProperties(String propertiesFile) {
 		try {
-			InputStream propFile = Thread.currentThread()
-					.getContextClassLoader()
-					.getResourceAsStream(propertiesFile);
-			if (propFile != null) {
-				props.load(propFile);
-				String url = props.getProperty("local.connection.url",
-						"jdbc:mysql://localhost:3306/gfatm_dw");
-				String driverName = props.getProperty(
-						"local.connection.driver_class",
-						"com.mysql.jdbc.Driver");
-				dwSchema = props.getProperty("local.connection.database",
-						"gfatm_dw");
-				String username = props.getProperty(
-						"local.connection.username", "root");
-				String password = props
-						.getProperty("local.connection.password");
-				localDb.setConnection(url, dwSchema, driverName, username,
-						password);
-				System.out.println("Local DB settings...");
-				System.out.println("URL: " + localDb.getUrl());
-				System.out.println("DB Name: " + localDb.getDbName());
-				System.out.println("Driver: " + localDb.getDriverName());
-				System.out.println("Username: " + localDb.getUsername());
-				System.out.println("Trying to connect... " + localDb.tryConnection());
+			InputStream propFile = new FileInputStream(propertiesFile);
+			props.load(propFile);
+			String url = props.getProperty("local.connection.url");
+			String driverName = props
+					.getProperty("local.connection.driver_class");
+			dwSchema = props.getProperty("local.connection.database");
+			String username = props
+					.getProperty("local.connection.username");
+			String password = props
+					.getProperty("local.connection.password");
+			dwDb.setConnection(url, dwSchema, driverName, username,
+					password);
+			System.out.println("Local DB settings...");
+			System.out.println("URL: " + dwDb.getUrl());
+			System.out.println("DB Name: " + dwDb.getDbName());
+			System.out.println("Driver: " + dwDb.getDriverName());
+			System.out.println("Username: " + dwDb.getUsername());
+			System.out.println("Trying to connect... "
+					+ dwDb.tryConnection());
+			if (!dwDb.tryConnection()) {
+				log.severe("Unable to connect with database. Exiting...");
+				System.exit(-1);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-			log.severe("Properties file not found in class path.");
+			System.exit(-1);
 		}
 	}
 
@@ -192,10 +187,13 @@ public class DataWarehouseMain {
 	 */
 	public void destroyDatawarehouse() {
 		try {
-			SqlExecuteUtil sqlUtil = new SqlExecuteUtil(localDb.getUrl(),
-					localDb.getDriverName(), localDb.getUsername(),
-					localDb.getPassword());
-			sqlUtil.execute(resourcePath + destroyWarehouseFile);
+			dwDb.runStoredProcedure("destroy_datawarehouse", null);
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -206,10 +204,13 @@ public class DataWarehouseMain {
 	 */
 	public void createDatawarehouse() {
 		try {
-			SqlExecuteUtil sqlUtil = new SqlExecuteUtil(localDb.getUrl(),
-					localDb.getDriverName(), localDb.getUsername(),
-					localDb.getPassword());
-			sqlUtil.execute(resourcePath + createWarehouseFile);
+			dwDb.runStoredProcedure("create_datawarehouse", null);
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

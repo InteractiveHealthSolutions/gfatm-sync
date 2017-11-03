@@ -27,7 +27,6 @@ import com.ihsinformatics.util.DateTimeUtil;
  *
  */
 public class AbstractImportController {
-
 	protected DatabaseUtil targetDb;
 	protected DatabaseUtil sourceDb;
 	protected Date fromDate;
@@ -46,15 +45,15 @@ public class AbstractImportController {
 		StringBuilder filter = new StringBuilder(" WHERE 1=1 ");
 		filter.append("AND (" + createDateName);
 		filter.append(" BETWEEN TIMESTAMP('"
-				+ DateTimeUtil.getSqlDateTime(fromDate) + "') ");
-		filter.append("AND TIMESTAMP('" + DateTimeUtil.getSqlDateTime(toDate)
-				+ "')) ");
+				+ DateTimeUtil.toSqlDateTimeString(fromDate) + "') ");
+		filter.append("AND TIMESTAMP('"
+				+ DateTimeUtil.toSqlDateTimeString(toDate) + "')) ");
 		if (updateDateName != null) {
 			filter.append(" OR (" + updateDateName);
 			filter.append(" BETWEEN TIMESTAMP('"
-					+ DateTimeUtil.getSqlDateTime(fromDate) + "') ");
+					+ DateTimeUtil.toSqlDateTimeString(fromDate) + "') ");
 			filter.append("AND TIMESTAMP('"
-					+ DateTimeUtil.getSqlDateTime(toDate) + "')) ");
+					+ DateTimeUtil.toSqlDateTimeString(toDate) + "')) ");
 		}
 		return filter.toString();
 	}
@@ -105,5 +104,4 @@ public class AbstractImportController {
 			target.executeUpdate();
 		}
 	}
-
 }

@@ -358,12 +358,15 @@ public class GfatmImportController extends AbstractImportController {
 				dates.add(date[0].toString());
 			}
 			for (String date : dates) {
-				log.info("Inserting data from user_form into data warehouse for date " + date);
+				log.info("Inserting data from user_form into data warehouse for date "
+						+ date);
 				insertQuery = "INSERT INTO tmp_gfatm_user_form (surrogate_id, implementation_id, user_form_id, user_form_type_id, user_id, duration_seconds, date_entered, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 				selectQuery = "SELECT 0,'"
 						+ implementationId
 						+ "', user_form_id, user_form_type_id, user_id, duration_seconds, date_entered, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
-						+ database + ".user_form AS t WHERE DATE(t.date_created) = '" + date + "'";
+						+ database
+						+ ".user_form AS t WHERE DATE(t.date_created) = '"
+						+ date + "'";
 				remoteSelectInsert(selectQuery, insertQuery,
 						remoteDb.getConnection(), targetDb.getConnection());
 			}
@@ -385,12 +388,15 @@ public class GfatmImportController extends AbstractImportController {
 				dates.add(date[0].toString());
 			}
 			for (String date : dates) {
-				log.info("Inserting data from user_form_result into data warehouse for date " + date);
+				log.info("Inserting data from user_form_result into data warehouse for date "
+						+ date);
 				insertQuery = "INSERT INTO tmp_gfatm_user_form_result (surrogate_id, implementation_id, user_form_result_id, user_form_id, element_id, result, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
 				selectQuery = "SELECT 0,'"
 						+ implementationId
 						+ "', user_form_result_id, user_form_id, element_id, result, date_created, created_by, created_at, date_changed, changed_by, changed_at, uuid FROM "
-						+ database + ".user_form_result AS t WHERE DATE(t.date_created) = '" + date + "'";
+						+ database
+						+ ".user_form_result AS t WHERE DATE(t.date_created) = '"
+						+ date + "'";
 				remoteSelectInsert(selectQuery, insertQuery,
 						remoteDb.getConnection(), targetDb.getConnection());
 			}

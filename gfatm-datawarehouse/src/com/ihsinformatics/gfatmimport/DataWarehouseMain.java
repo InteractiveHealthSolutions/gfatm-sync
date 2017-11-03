@@ -159,19 +159,15 @@ public class DataWarehouseMain {
 			String driverName = props
 					.getProperty("local.connection.driver_class");
 			dwSchema = props.getProperty("local.connection.database");
-			String username = props
-					.getProperty("local.connection.username");
-			String password = props
-					.getProperty("local.connection.password");
-			dwDb.setConnection(url, dwSchema, driverName, username,
-					password);
+			String username = props.getProperty("local.connection.username");
+			String password = props.getProperty("local.connection.password");
+			dwDb.setConnection(url, dwSchema, driverName, username, password);
 			System.out.println("Local DB settings...");
 			System.out.println("URL: " + dwDb.getUrl());
 			System.out.println("DB Name: " + dwDb.getDbName());
 			System.out.println("Driver: " + dwDb.getDriverName());
 			System.out.println("Username: " + dwDb.getUsername());
-			System.out.println("Trying to connect... "
-					+ dwDb.tryConnection());
+			System.out.println("Trying to connect... " + dwDb.tryConnection());
 			if (!dwDb.tryConnection()) {
 				log.severe("Unable to connect with database. Exiting...");
 				System.exit(-1);

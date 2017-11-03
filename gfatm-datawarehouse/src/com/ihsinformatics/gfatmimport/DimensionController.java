@@ -301,7 +301,8 @@ public class DimensionController {
 			throws InstantiationException, IllegalAccessException,
 			ClassNotFoundException {
 		log.info("Transforming user roles.");
-		db.runCommand(CommandType.DROP, "drop table if exists user_role_merged;");
+		db.runCommand(CommandType.DROP,
+				"drop table if exists user_role_merged;");
 		Object[][] roles = db.getTableData("role", "role", null, true);
 		StringBuilder groupConcat = new StringBuilder();
 		for (Object[] role : roles) {
@@ -469,7 +470,8 @@ public class DimensionController {
 		}
 
 		// Fill the patient dimension data... in batches
-		Object[] range = db.getRecord("patient", "min(patient_id),max(patient_id)", "");
+		Object[] range = db.getRecord("patient",
+				"min(patient_id),max(patient_id)", "");
 		long min = Long.parseLong(range[0].toString());
 		long max = Long.parseLong(range[1].toString());
 		long[] parts = split(max, 20);
@@ -487,8 +489,10 @@ public class DimensionController {
 			query.append("inner join person_latest_name as n on n.implementation_id = p.implementation_id and n.person_id = pr.person_id and n.preferred = 1 ");
 			query.append("left outer join person_latest_address as a on a.implementation_id = p.implementation_id and a.person_id = p.patient_id and a.preferred = 1 ");
 			query.append("left outer join person_attribute_merged as pam on pam.implementation_id = p.implementation_id and pam.person_id = p.patient_id ");
-			query.append("where p.voided = 0 and not exists (select * from dim_patient where implementation_id = p.implementation_id and patient_id = p.patient_id) and p.patient_id between " + min + " and " + (min + l));
-			log.info("Inserting new patients to dimension from ID: " + min + " to " + (min + l));
+			query.append("where p.voided = 0 and not exists (select * from dim_patient where implementation_id = p.implementation_id and patient_id = p.patient_id) and p.patient_id between "
+					+ min + " and " + (min + l));
+			log.info("Inserting new patients to dimension from ID: " + min
+					+ " to " + (min + l));
 			db.runCommand(CommandType.INSERT, query.toString());
 			min += l;
 		}

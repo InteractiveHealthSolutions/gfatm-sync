@@ -49,28 +49,36 @@ public class DataWarehouseMain {
 
 		// Check arguments first
 		if (args[0] == null || args.length == 0) {
-			System.out
-					.println("Arguments are invalid. Arguments must be provided as:");
-			System.out.println("-u path to resource directory");
+			System.out.println("Arguments are invalid. Arguments must be provided as:");
 			System.out.println("-p path to database properties file");
-			System.out
-					.println("-r to reset warehouse (ETL > Dimensional modeling > Fact modeling)");
-			System.out
-					.println("-d to create data warehouse dimentions and fact tables");
-			System.out.println("-u to update data warehouse (nightly run)");
+			System.out.println("-d to delete warehouse (Hard reset!)");
+			System.out.println("-c to create data warehouse dimentions and fact tables");
+			System.out.println("-i to import data from external sources");
+			System.out.println("-D to update data warehouse dimensions");
+			System.out.println("-F to update data warehouse facts");
 			return;
 		}
-		boolean doReset = false, doUpdate = false;
+		boolean doDelete = false;
+		boolean doCreate = false;
+		boolean doImport = false;
+		boolean doDimensions = false;
+		boolean doFacts = false;
 		for (int i = 0; i < args.length; i++) {
 			if (args[i].equals("-p")) {
 				resourceFilePath = args[i + 1];
-			} else if (args[i].equalsIgnoreCase("-r")) {
-				doReset = true;
-			} else if (args[i].equalsIgnoreCase("-u")) {
-				doUpdate = true;
+			} else if (args[i].equals("-d")) {
+				doDelete = true;
+			} else if (args[i].equals("-c")) {
+				doCreate = true;
+			} else if (args[i].equals("-i")) {
+				doImport = true;
+			} else if (args[i].equals("-D")) {
+				doDimensions = true;
+			} else if (args[i].equals("-F")) {
+				doFacts = true;
 			}
-		}
-		if (!(doReset | doUpdate)) {
+		}		
+		if (!(doDelete | doCreate | doImport | doDimensions | doFacts)) {
 			System.out.println("No valid parameters are defined. Exiting");
 			System.exit(-1);
 		}
@@ -84,7 +92,7 @@ public class DataWarehouseMain {
 			log.warning("Another instance is already running. Please check the _implementation table for confirmation.");
 			System.exit(-1);
 		}
-		// Import data from each source
+		// Run for each source
 		for (int i = 0; i < sources.length; i++) {
 			Object[] source = sources[i];
 			int implementationId = Integer.parseInt(source[0].toString());
@@ -101,9 +109,6 @@ public class DataWarehouseMain {
 			DatabaseUtil gfatmMrsDb = new DatabaseUtil(url, "gfatm",
 					driverName, username, password);
 			try {
-				// Date dateCreated =
-				// DateTimeUtil.getDateFromString(source[6].toString(),
-				// DateTimeUtil.SQL_DATETIME);
 				Date lastUpdated = DateTimeUtil.fromSqlDateTimeString(source[7]
 						.toString());
 				OpenMrsImportController openMrsImportController = new OpenMrsImportController(
@@ -114,21 +119,24 @@ public class DataWarehouseMain {
 				dwObj.dwDb.updateRecord("_implementation",
 						new String[] { "status" }, new String[] { "RUNNING" },
 						"implementation_id='" + implementationId + "'");
-				if (doReset) {
+				if (doDelete) {
 					dwObj.destroyDatawarehouse();
-					dwObj.createDatawarehouse();
-					gfatmImportController.importData(implementationId);
-					openMrsImportController.importData(implementationId);
-				} else if (doUpdate) {
-					dwObj.createDatawarehouse();
-					gfatmImportController.importData(implementationId);
-					openMrsImportController.importData(implementationId);
 				}
-				DimensionController dimController = new DimensionController(
-						dwObj.dwDb);
-				dimController.modelDimensions();
-				FactController factController = new FactController(dwObj.dwDb);
-				factController.modelFacts();
+				if (doCreate) {
+					dwObj.createDatawarehouse();					
+				}
+				if (doImport) {
+					gfatmImportController.importData(implementationId);
+					openMrsImportController.importData(implementationId);					
+				}
+				if (doDimensions) {
+					DimensionController dimController = new DimensionController(dwObj.dwDb);
+					dimController.modelDimensions();					
+				}
+				if (doFacts) {
+					FactController factController = new FactController(dwObj.dwDb);
+					factController.modelFacts();
+				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {
@@ -183,6 +191,7 @@ public class DataWarehouseMain {
 	 */
 	public void destroyDatawarehouse() {
 		try {
+			log.info("Destroying data warehouse.");
 			dwDb.runStoredProcedure("destroy_datawarehouse", null);
 		} catch (InstantiationException e) {
 			e.printStackTrace();
@@ -200,6 +209,7 @@ public class DataWarehouseMain {
 	 */
 	public void createDatawarehouse() {
 		try {
+			log.info("Creating data warehouse.");
 			dwDb.runStoredProcedure("create_datawarehouse", null);
 		} catch (InstantiationException e) {
 			e.printStackTrace();

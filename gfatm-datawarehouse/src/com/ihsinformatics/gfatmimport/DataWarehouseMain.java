@@ -51,7 +51,8 @@ public class DataWarehouseMain {
 		if (args[0] == null || args.length == 0) {
 			System.out.println("Arguments are invalid. Arguments must be provided as:");
 			System.out.println("-p path to database properties file");
-			System.out.println("-d to delete warehouse (Hard reset!)");
+			System.out.println("-X to hard reset data warehouse");
+			System.out.println("-d to delete warehouse schema");
 			System.out.println("-c to create data warehouse dimentions and fact tables");
 			System.out.println("-i to import data from external sources");
 			System.out.println("-D to update data warehouse dimensions");
@@ -76,8 +77,10 @@ public class DataWarehouseMain {
 				doDimensions = true;
 			} else if (args[i].equals("-F")) {
 				doFacts = true;
+			} else if (args[i].equals("-X")) {
+				log.info("Hard reset function is currently under development.");
 			}
-		}		
+		}
 		if (!(doDelete | doCreate | doImport | doDimensions | doFacts)) {
 			System.out.println("No valid parameters are defined. Exiting");
 			System.exit(-1);
@@ -126,21 +129,28 @@ public class DataWarehouseMain {
 					dwObj.createDatawarehouse();					
 				}
 				if (doImport) {
+					log.info("Importing GFATM data...");
 					gfatmImportController.importData(implementationId);
+					log.info("Importing OpenMRS data...");
 					openMrsImportController.importData(implementationId);					
 				}
 				if (doDimensions) {
 					DimensionController dimController = new DimensionController(dwObj.dwDb);
-					dimController.modelDimensions();					
+					log.info("Starting dimension modeling");
+					dimController.modelDimensions();
+					log.info("Dimension modeling complete");
 				}
 				if (doFacts) {
 					FactController factController = new FactController(dwObj.dwDb);
+					log.info("Starting fact modeling");
 					factController.modelFacts();
+					log.info("Fact modeling complete");
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {
 				try {
+					log.info("Updating _implementation table status");
 					// Update the status in _implementation table
 					dwObj.dwDb.updateRecord(
 							"_implementation",
@@ -153,6 +163,7 @@ public class DataWarehouseMain {
 				}
 			}
 		}
+		log.info("Data warehouse process complete. Exiting...");
 		System.exit(0);
 	}
 
@@ -191,8 +202,9 @@ public class DataWarehouseMain {
 	 */
 	public void destroyDatawarehouse() {
 		try {
-			log.info("Destroying data warehouse.");
+			log.info("Deleting dimensions and facts.");
 			dwDb.runStoredProcedure("destroy_datawarehouse", null);
+			log.info("Dimensions and facts deleted.");
 		} catch (InstantiationException e) {
 			e.printStackTrace();
 		} catch (IllegalAccessException e) {
@@ -209,8 +221,9 @@ public class DataWarehouseMain {
 	 */
 	public void createDatawarehouse() {
 		try {
-			log.info("Creating data warehouse.");
+			log.info("Creating dimensions and facts.");
 			dwDb.runStoredProcedure("create_datawarehouse", null);
+			log.info("Dimensions and facts created.");
 		} catch (InstantiationException e) {
 			e.printStackTrace();
 		} catch (IllegalAccessException e) {

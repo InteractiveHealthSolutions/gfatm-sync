@@ -58,10 +58,15 @@ public class GfatmImportController extends AbstractImportController {
 		sourceDb.getConnection();
 		// Import data from this connection into data warehouse
 		try {
+			log.info("Cleaning temporary tables...");
 			clearTempTables(implementationId);
+			log.info("Importing location data...");
 			importLocationData(sourceDb, implementationId);
+			log.info("Importing user data...");
 			importUserData(sourceDb, implementationId);
+			log.info("Importing user form data...");
 			importUserFormData(sourceDb, implementationId);
+			log.info("Import complete");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

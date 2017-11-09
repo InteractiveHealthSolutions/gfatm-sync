@@ -54,49 +54,56 @@ public class DimensionController {
 	}
 
 	public void modelDimensions(Date from, Date to, int implementationId) {
-		log.info("Starting dimension modeling");
 		try {
+			log.info("Creating time dimension");
 			timeDimension();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		try {
+			log.info("Creating concept dimension");
 			conceptDimension(from, to, implementationId);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		try {
+			log.info("Creating location dimension");
 			locationDimension(from, to, implementationId);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		try {
+			log.info("Creating user dimension");
 			userDimension(from, to, implementationId);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		try {
+			log.info("Creating patient dimension");
 			patientDimension(from, to, implementationId);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		try {
+			log.info("Creating encounter and observation dimensions");
 			encounterAndObsDimension(from, to, implementationId);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		try {
+			log.info("Creating user form and result dimensions");
 			userFormAndResultDimension(from, to, implementationId);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		try {
+			log.info("Starting deencounterizing process");
 			deencounterizeOpenMrs();
 			deencounterizeGfatm();
+			log.info("Deencounterizing process complete");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		log.info("Finished dimension modeling");
 	}
 
 	/**
@@ -140,6 +147,7 @@ public class DimensionController {
 			start.add(Calendar.DATE, 1);
 		}
 		query.setCharAt(query.length() - 1, ';');
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.INSERT, query.toString());
 	}
 
@@ -170,6 +178,7 @@ public class DimensionController {
 		query.append("(select max(concept_name_id) from concept_name where implementation_id = c.implementation_id and concept_id = c.concept_id and locale = 'en' and voided = 0 and concept_name_type = 'SHORT') as short_name, ");
 		query.append("(select max(concept_name_id) from concept_name where implementation_id = c.implementation_id and concept_id = c.concept_id and locale = 'en' and voided = 0 and concept_name_type = 'FULLY_SPECIFIED') as full_name from concept as c ");
 		query.append("having concat(ifnull(default_name, ''), ifnull(short_name, ''), ifnull(full_name, '')) <> '' ");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.CREATE, query.toString());
 
 		db.runCommand(
@@ -190,6 +199,7 @@ public class DimensionController {
 		query.append("where c.implementation_id = '" + implementationId + "' ");
 		query.append("and c.surrogate_id not in (select surrogate_id from dim_concept where implementation_id = c.implementation_id)");
 		log.info("Inserting new concepts to dimension.");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.INSERT, query.toString());
 		query = new StringBuilder(
 				"update dim_concept set full_name = 'Yes', short_name = 'Yes', default_name = 'Yes' where concept_id = 1");
@@ -244,6 +254,7 @@ public class DimensionController {
 		query.append("where a.voided = 0 and a.implementation_id = '"
 				+ implementationId + "' ");
 		query.append("group by a.location_id");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.CREATE, query.toString());
 		db.runCommand(
 				CommandType.ALTER,
@@ -287,6 +298,7 @@ public class DimensionController {
 		query.append("where l.implementation_id = '" + implementationId + "' ");
 		query.append("and l.surrogate_id not in (select surrogate_id from dim_location where implementation_id = l.implementation_id)");
 		log.info("Inserting new locations to dimension.");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.INSERT, query.toString());
 	}
 
@@ -320,6 +332,7 @@ public class DimensionController {
 		query.append("from user_role as a ");
 		query.append("where a.implementation_id = '" + implementationId + "' ");
 		query.append("group by a.user_id");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.CREATE, query.toString());
 		db.runCommand(CommandType.ALTER,
 				"alter table user_role_merged add primary key (implementation_id, user_id)");
@@ -358,6 +371,7 @@ public class DimensionController {
 		query.append("left outer join provider_attribute as pa1 on pa1.implementation_id = u.implementation_id and pa1.provider_id = p.provider_id and pa1.attribute_type_id = 1 ");
 		query.append("left outer join user_role_merged as urm on urm.implementation_id = u.implementation_id and urm.user_id = u.user_id ");
 		log.info("Inserting new users to dimension.");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.INSERT, query.toString());
 	}
 
@@ -371,52 +385,16 @@ public class DimensionController {
 	public void patientDimension(Date from, Date to, int implementationId)
 			throws InstantiationException, IllegalAccessException,
 			ClassNotFoundException {
-		// Collect latest patient identifiers
-		log.info("Setting preferred identifiers to OpenMRS ID (with check digit).");
-		db.runCommand(CommandType.UPDATE,
-				"update patient_identifier set preferred = 1 where identifier_type = 3");
-		log.info("Setting identifiers other than OpenMRS ID to non-preferred.");
-		db.runCommand(CommandType.UPDATE,
-				"update patient_identifier set preferred = 0 where identifier_type <> 3");
-		log.info("Selecting patient identifiers.");
-		db.runCommand(CommandType.DROP,
-				"drop table if exists patient_latest_identifier");
-		StringBuilder query = new StringBuilder(
-				"create table patient_latest_identifier ");
-		query.append("select * from patient_identifier as a having a.patient_id = (select max(patient_id) from patient_identifier where implementation_id = a.implementation_id and patient_id = a.patient_id and preferred = 1 and voided = 0) union ");
-		query.append("select * from patient_identifier as a having a.patient_id = (select max(patient_id) from patient_identifier where implementation_id = a.implementation_id and patient_id = a.patient_id and preferred = 0 and voided = 0)");
-		db.runCommand(CommandType.CREATE, query.toString());
-		db.runCommand(
-				CommandType.ALTER,
-				"alter table patient_latest_identifier add primary key surrogate_id (surrogate_id), add index identifier_index (patient_identifier_id, identifier_type), add index patient_index (patient_id)");
-
 		// Collect latest person names
 		log.info("Selecting people names (preferred/latest).");
 		db.runCommand(CommandType.DROP,
 				"drop table if exists person_latest_name");
-		query = new StringBuilder("create table person_latest_name ");
+		StringBuilder query = new StringBuilder("create table person_latest_name ");
 		query.append("select * from person_name as a where a.person_name_id = (select max(person_name_id) from person_name where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 1)");
 		db.runCommand(CommandType.CREATE, query.toString());
-		query = new StringBuilder("insert into person_latest_name ");
-		query.append("select * from person_name as a where a.person_name_id = (select max(person_name_id) from person_name where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 0)");
-		db.runCommand(CommandType.INSERT, query.toString());
 		db.runCommand(
 				CommandType.ALTER,
 				"alter table person_latest_name add primary key surrogate_id (surrogate_id), add index person_index (person_id, person_name_id)");
-
-		// Collect latest person addresses
-		log.info("Selecting people addresses (preferred/latest).");
-		db.runCommand(CommandType.DROP,
-				"drop table if exists person_latest_address");
-		query = new StringBuilder("create table person_latest_address ");
-		query.append("select * from person_address as a where a.person_address_id = (select max(person_address_id) from person_address where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 1)");
-		db.runCommand(CommandType.CREATE, query.toString());
-		query = new StringBuilder("insert into person_latest_address ");
-		query.append("select * from person_address as a where a.person_address_id = (select max(person_address_id) from person_address where implementation_id = a.implementation_id and person_id = a.person_id and preferred = 0)");
-		db.runCommand(CommandType.INSERT, query.toString());
-		db.runCommand(
-				CommandType.ALTER,
-				"alter table person_latest_address add primary key surrogate_id (surrogate_id), add index identifier_index (person_id, person_address_id)");
 
 		// Recreate person attributes
 		log.info("Transforming people attribute.");
@@ -438,6 +416,7 @@ public class DimensionController {
 		query.append(groupConcat.toString());
 		query.append("from person_attribute as a where a.voided = 0 ");
 		query.append("group by a.implementation_id, a.person_id");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.CREATE, query.toString());
 		db.runCommand(
 				CommandType.ALTER,
@@ -477,22 +456,22 @@ public class DimensionController {
 		long[] parts = split(max, 20);
 		for (long l : parts) {
 			query = new StringBuilder(
-					"insert into dim_patient (surrogate_id, implementation_id, patient_id, patient_identifier, enrs, external_id, gender, birthdate, birthdate_estimated, dead, first_name, middle_name, last_name, address1, address2, city_village, state_province, postal_code, country, creator, date_created, changed_by, date_changed, voided, uuid, "
+					"insert into dim_patient (surrogate_id, implementation_id, patient_id, patient_identifier, enrs, external_id, gender, birthdate, birthdate_estimated, dead, first_name, middle_name, last_name, creator, date_created, changed_by, date_changed, voided, uuid, "
 							+ columns.toString().replace(aliasPrefix + ".", "")
 							+ ") ");
-			query.append("select p.surrogate_id, p.implementation_id, p.patient_id, pid.identifier as patient_identifier, enrs.identifier as enrs, eid.identifier as external_id, pr.gender, pr.birthdate, pr.birthdate_estimated, pr.dead, n.given_name as first_name, n.middle_name, n.family_name as last_name, a.address1, a.address2, a.city_village, a.state_province, a.postal_code, a.country, p.creator, p.date_created, p.changed_by, p.date_changed, p.voided, pr.uuid, "
+			query.append("select p.surrogate_id, p.implementation_id, p.patient_id, pid.identifier as patient_identifier, enrs.identifier as enrs, eid.identifier as external_id, pr.gender, pr.birthdate, pr.birthdate_estimated, pr.dead, n.given_name as first_name, n.middle_name, n.family_name as last_name, p.creator, p.date_created, p.changed_by, p.date_changed, p.voided, pr.uuid, "
 					+ columns + " from patient as p ");
 			query.append("inner join person as pr on pr.implementation_id = p.implementation_id and pr.person_id = p.patient_id ");
-			query.append("inner join patient_latest_identifier as pid on pid.implementation_id = p.implementation_id and pid.patient_id = p.patient_id and pid.identifier_type = 3 ");
-			query.append("left outer join patient_latest_identifier as enrs on enrs.implementation_id = p.implementation_id and enrs.patient_id = p.patient_id and enrs.identifier_type = 4 ");
-			query.append("left outer join patient_latest_identifier as eid on eid.implementation_id = p.implementation_id and eid.patient_id = p.patient_id and eid.identifier_type = 5 ");
+			query.append("inner join patient_identifier as pid on pid.implementation_id = p.implementation_id and pid.patient_id = p.patient_id and pid.identifier_type = 3 and pid.voided = 0 ");
+			query.append("left outer join patient_identifier as enrs on enrs.implementation_id = p.implementation_id and enrs.patient_id = p.patient_id and enrs.identifier_type = 4 and enrs.voided = 0 ");
+			query.append("left outer join patient_identifier as eid on eid.implementation_id = p.implementation_id and eid.patient_id = p.patient_id and eid.identifier_type = 5 and eid.voided = 0 ");
 			query.append("inner join person_latest_name as n on n.implementation_id = p.implementation_id and n.person_id = pr.person_id and n.preferred = 1 ");
-			query.append("left outer join person_latest_address as a on a.implementation_id = p.implementation_id and a.person_id = p.patient_id and a.preferred = 1 ");
 			query.append("left outer join person_attribute_merged as pam on pam.implementation_id = p.implementation_id and pam.person_id = p.patient_id ");
 			query.append("where p.voided = 0 and not exists (select * from dim_patient where implementation_id = p.implementation_id and patient_id = p.patient_id) and p.patient_id between "
 					+ min + " and " + (min + l));
 			log.info("Inserting new patients to dimension from ID: " + min
 					+ " to " + (min + l));
+			log.info("Executing: " + query.toString());
 			db.runCommand(CommandType.INSERT, query.toString());
 			min += l;
 		}
@@ -510,12 +489,12 @@ public class DimensionController {
 			IllegalAccessException, ClassNotFoundException {
 		// Fill the encounter dimension data
 		StringBuilder query = new StringBuilder(
-				"insert ignore into dim_encounter ");
+				"insert into dim_encounter ");
 		query.append("select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, et.name as encounter_name, et.description, e.patient_id, e.location_id, p.identifier as provider, e.encounter_datetime as date_entered, e.creator, e.date_created as date_start, e.changed_by, e.date_changed, e.date_created as date_end, e.uuid from encounter as e ");
 		query.append("inner join encounter_type as et on et.encounter_type_id = e.encounter_type ");
 		query.append("left outer join encounter_provider as ep on ep.encounter_id = e.encounter_id ");
 		query.append("left outer join provider as p on p.provider_id = ep.provider_id ");
-		StringBuilder filter = new StringBuilder(" where e.voided = 0 ");
+		StringBuilder filter = new StringBuilder(" where e.voided = 0 and not exists (select * from dim_encounter where implementation_id = e.implementation_id and encounter_id = e.encounter_id) ");
 		filter.append("and (e.date_created between timestamp('"
 				+ DateTimeUtil.toSqlDateTimeString(from) + "') ");
 		filter.append("and timestamp('" + DateTimeUtil.toSqlDateTimeString(to)
@@ -526,23 +505,25 @@ public class DimensionController {
 				+ "')) ");
 		query.append(filter.toString());
 		log.info("Inserting new encounters to dimension.");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.INSERT, query.toString());
 
 		// Fill the observation dimension data
-		filter = new StringBuilder(
-				" where o.voided = 0 and o.previous_version is null ");
-		filter.append("and (o.date_created between timestamp('"
-				+ DateTimeUtil.toSqlDateTimeString(from) + "') ");
-		filter.append("and timestamp('" + DateTimeUtil.toSqlDateTimeString(to)
-				+ "')) ");
-		query = new StringBuilder("insert ignore into dim_obs ");
+		query = new StringBuilder("insert into dim_obs ");
 		query.append("select o.surrogate_id, o.implementation_id, e.encounter_id, e.encounter_type, e.patient_id, p.patient_identifier, e.provider, o.obs_id, o.obs_group_id, o.concept_id, c.short_name as question, obs_datetime, o.location_id, concat(ifnull(ifnull(ifnull(c2.short_name, c2.default_name), c2.full_name), ''), ifnull(o.value_boolean, ''), ifnull(o.value_datetime, ''), ifnull(o.value_numeric, ''), ifnull(o.value_text, '')) as answer, o.value_boolean, o.value_coded, o.value_datetime, o.value_numeric, o.value_text, o.creator, o.date_created, o.voided, o.uuid from obs as o ");
 		query.append("inner join dim_concept as c on c.implementation_id = o.implementation_id and c.concept_id = o.concept_id ");
 		query.append("inner join dim_encounter as e on e.implementation_id = o.implementation_id and e.encounter_id = o.encounter_id ");
 		query.append("inner join dim_patient as p on p.implementation_id = e.implementation_id and p.patient_id = e.patient_id ");
 		query.append("left outer join dim_concept as c2 on c2.implementation_id = o.implementation_id and c2.concept_id = o.value_coded ");
+		filter = new StringBuilder(
+				" where o.voided = 0 and o.previous_version is null and not exists (select * from dim_obs where implementation_id = o.implementation_id and obs_id = o.obs_id) ");
+		filter.append("and (o.date_created between timestamp('"
+				+ DateTimeUtil.toSqlDateTimeString(from) + "') ");
+		filter.append("and timestamp('" + DateTimeUtil.toSqlDateTimeString(to)
+				+ "')) ");
 		query.append(filter.toString());
 		log.info("Inserting new observations to dimension.");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.INSERT, query.toString());
 
 		// Fill multi-select options as comma-separated in parent obs
@@ -553,10 +534,12 @@ public class DimensionController {
 		query.append("where obs_group_id is not null ");
 		query.append("group by implementation_id, obs_group_id, encounter_type ");
 		query.append("having answer is not null");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.CREATE, query.toString());
 		query = new StringBuilder("update dim_obs as o, tmp_group_obs as t ");
 		query.append("set o.answer = t.answer ");
 		query.append("where o.implementation_id = t.implementation_id and o.obs_id = t.obs_group_id");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.UPDATE, query.toString());
 	}
 
@@ -586,20 +569,22 @@ public class DimensionController {
 				+ "')) ");
 		query.append(filter.toString());
 		log.info("Inserting new user forms to dimension.");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.INSERT, query.toString());
 
 		// Fill the user form results dimension data
+		query = new StringBuilder("insert ignore into dim_user_form_result ");
+		query.append("select ufr.surrogate_id, ufr.implementation_id, uf.user_form_type_id, ufr.user_form_result_id, ufr.user_form_id, ufr.element_id, e.element_name as question, ufr.result as answer, ufr.created_by as user_id, ufr.created_at as location_id, uf.date_entered, ufr.date_created, ufr.changed_by, ufr.date_changed, ufr.uuid from gfatm_user_form_result as ufr ");
+		query.append("inner join gfatm_user_form as uf on uf.user_form_id = ufr.user_form_id ");
+		query.append("inner join gfatm_element as e on e.element_id = ufr.element_id");
 		filter = new StringBuilder(" where 1=1 ");
 		filter.append("and (ufr.date_created between timestamp('"
 				+ DateTimeUtil.toSqlDateTimeString(from) + "') ");
 		filter.append("and timestamp('" + DateTimeUtil.toSqlDateTimeString(to)
 				+ "')) ");
-		query = new StringBuilder("insert ignore into dim_user_form_result ");
-		query.append("select ufr.surrogate_id, ufr.implementation_id, uf.user_form_type_id, ufr.user_form_result_id, ufr.user_form_id, ufr.element_id, e.element_name as question, ufr.result as answer, ufr.created_by as user_id, ufr.created_at as location_id, uf.date_entered, ufr.date_created, ufr.changed_by, ufr.date_changed, ufr.uuid from gfatm_user_form_result as ufr ");
-		query.append("inner join gfatm_user_form as uf on uf.user_form_id = ufr.user_form_id ");
-		query.append("inner join gfatm_element as e on e.element_id = ufr.element_id");
 		query.append(filter.toString());
 		log.info("Inserting new user form results to dimension.");
+		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.INSERT, query.toString());
 	}
 

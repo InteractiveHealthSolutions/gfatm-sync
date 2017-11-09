@@ -59,15 +59,25 @@ public class OpenMrsImportController extends AbstractImportController {
 		// Import data from this connection into data warehouse
 		try {
 			// Update status of implementation record
+			log.info("Cleaning temporary tables...");
 			clearTempTables(implementationId);
+			log.info("Importing people data...");
 			importPeopleData(sourceDb, implementationId);
+			log.info("Importing user data...");
 			importUserData(sourceDb, implementationId);
+			log.info("Importing location data...");
 			importLocationData(sourceDb, implementationId);
+			log.info("Importing concept data...");
 			importConceptData(sourceDb, implementationId);
+			log.info("Importing patient data...");
 			importPatientData(sourceDb, implementationId);
+			log.info("Importing encounter data...");
 			importEncounterData(sourceDb, implementationId);
+			log.info("Importing visit data...");
 			importVisitData(sourceDb, implementationId);
+			log.info("Importing forms data...");
 			importFormData(sourceDb, implementationId);
+			log.info("Import complete");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -149,7 +159,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
-					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+					+ " WHERE implementation_id = t.implementation_id AND person_id = t.person_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
 			updateQuery = "UPDATE "

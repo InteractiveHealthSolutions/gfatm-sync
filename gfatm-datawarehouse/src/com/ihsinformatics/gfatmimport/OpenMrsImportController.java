@@ -1118,7 +1118,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			insertQuery = "INSERT IGNORE INTO " + tableName
 					+ " SELECT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
-					+ " WHERE implementation_id = t.implementation_id)";
+					+ " WHERE implementation_id = t.implementation_id and patient_id = t.patient_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
 			updateQuery = "UPDATE "

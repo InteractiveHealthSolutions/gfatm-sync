@@ -16,6 +16,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -45,8 +46,8 @@ public class DataWarehouseMain {
 	/**
 	 * @param args
 	 */
+	@SuppressWarnings("deprecation")
 	public static void main(String[] args) {
-
 		// Check arguments first
 		if (args[0] == null || args.length == 0) {
 			System.out.println("Arguments are invalid. Arguments must be provided as:");
@@ -55,6 +56,7 @@ public class DataWarehouseMain {
 			System.out.println("-d to delete warehouse schema");
 			System.out.println("-c to create data warehouse dimentions and fact tables");
 			System.out.println("-i to import data from external sources");
+			System.out.println("-r to import data for a specific date (can be used only with -i parameter)");
 			System.out.println("-D to update data warehouse dimensions");
 			System.out.println("-F to update data warehouse facts");
 			return;
@@ -64,6 +66,8 @@ public class DataWarehouseMain {
 		boolean doImport = false;
 		boolean doDimensions = false;
 		boolean doFacts = false;
+		boolean doRestrictDate = false;
+		Date forDate = null;
 		for (int i = 0; i < args.length; i++) {
 			if (args[i].equals("-p")) {
 				resourceFilePath = args[i + 1];
@@ -73,6 +77,12 @@ public class DataWarehouseMain {
 				doCreate = true;
 			} else if (args[i].equals("-i")) {
 				doImport = true;
+			} else if (args[i].equals("-r")) {
+				doRestrictDate = true;
+				forDate = DateTimeUtil.fromSqlDateString(args[i + 1]);
+				if (forDate == null) {
+					System.out.println("Invalid date provided. Please specify date in SQL format without quotes, i.e. yyyy-MM-dd");
+				}
 			} else if (args[i].equals("-D")) {
 				doDimensions = true;
 			} else if (args[i].equals("-F")) {
@@ -129,6 +139,20 @@ public class DataWarehouseMain {
 					dwObj.createDatawarehouse();					
 				}
 				if (doImport) {
+					if (doRestrictDate) {
+						Calendar from = Calendar.getInstance();
+						from.setTime(forDate);
+						Calendar to = Calendar.getInstance();
+						to.setTime(forDate);
+						to.set(Calendar.HOUR, 23);
+						to.set(Calendar.MINUTE, 59);
+						to.set(Calendar.SECOND, 59);
+						gfatmImportController.fromDate = from.getTime();
+						openMrsImportController.fromDate = from.getTime();
+						// Increase the time to last second of the day
+						gfatmImportController.toDate = to.getTime();
+						openMrsImportController.toDate = to.getTime();
+					}
 					log.info("Importing GFATM data...");
 					gfatmImportController.importData(implementationId);
 					log.info("Importing OpenMRS data...");

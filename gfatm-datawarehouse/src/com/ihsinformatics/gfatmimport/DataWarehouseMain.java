@@ -46,7 +46,6 @@ public class DataWarehouseMain {
 	/**
 	 * @param args
 	 */
-	@SuppressWarnings("deprecation")
 	public static void main(String[] args) {
 		// Check arguments first
 		if (args[0] == null || args.length == 0) {

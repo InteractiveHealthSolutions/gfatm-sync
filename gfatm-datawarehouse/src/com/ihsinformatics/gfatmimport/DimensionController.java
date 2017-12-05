@@ -372,7 +372,7 @@ public class DimensionController {
 			}
 			String encounterName = encounterType[1].toString().toLowerCase()
 					.replace(" ", "_").replace("-", "_");
-			query.append("create table enc_" + encounterName + " ");
+			query.append("create table enc_" + encounterName + " engine=MyISAM ");
 			query.append("select e.surrogate_id, e.implementation_id, e.encounter_id,  e.provider, e.location_id, l.location_name, e.patient_id, e.date_entered, ");
 			query.append(groupConcat.toString());
 			query.append("'' as BLANK from dim_encounter as e ");

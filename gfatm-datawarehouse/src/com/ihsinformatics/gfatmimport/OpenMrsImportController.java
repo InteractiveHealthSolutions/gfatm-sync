@@ -140,7 +140,7 @@ public class OpenMrsImportController extends AbstractImportController {
 		try {
 			tableName = "person";
 			// insert into temp_person table...
-			insertQuery = "INSERT  INTO tmp_"
+			insertQuery = "INSERT INTO tmp_"
 					+ tableName
 					+ " (surrogate_id, implementation_id, person_id, gender, birthdate, birthdate_estimated, dead, death_date, cause_of_death, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'"
@@ -155,7 +155,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -187,7 +187,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into person_attribute_type
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -216,7 +216,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -245,7 +245,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -274,7 +274,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -324,7 +324,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -371,7 +371,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -420,7 +420,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -489,7 +489,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -518,7 +518,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -547,7 +547,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -600,7 +600,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -631,7 +631,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -663,7 +663,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -694,7 +694,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -722,7 +722,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT IGNORE INTO " + tableName
-					+ " SELECT * FROM tmp_" + tableName
+					+ " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
@@ -773,7 +773,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -805,7 +805,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -837,7 +837,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -869,7 +869,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -901,7 +901,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -933,7 +933,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -965,7 +965,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -997,7 +997,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1030,7 +1030,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO " + tableName
-					+ " SELECT * FROM tmp_" + tableName
+					+ " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE concept_id NOT IN (SELECT concept_id FROM "
 					+ tableName
 					+ " WHERE implementation_id = t.implementation_id)";
@@ -1085,7 +1085,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1115,9 +1115,12 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
-			insertQuery = "INSERT IGNORE INTO " + tableName
-					+ " SELECT * FROM tmp_" + tableName
-					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
+			insertQuery = "INSERT IGNORE INTO "
+					+ tableName
+					+ " SELECT DISTINCT * FROM tmp_"
+					+ tableName
+					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
+					+ tableName
 					+ " WHERE implementation_id = t.implementation_id and patient_id = t.patient_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
@@ -1146,7 +1149,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1178,7 +1181,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1233,7 +1236,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1265,7 +1268,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1309,7 +1312,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1353,7 +1356,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1448,7 +1451,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1480,7 +1483,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1512,7 +1515,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1570,7 +1573,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1601,7 +1604,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1633,7 +1636,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName
@@ -1665,7 +1668,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
-					+ " SELECT * FROM tmp_"
+					+ " SELECT DISTINCT * FROM tmp_"
 					+ tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM "
 					+ tableName

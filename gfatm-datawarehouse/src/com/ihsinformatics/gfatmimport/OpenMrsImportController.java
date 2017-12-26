@@ -1287,7 +1287,8 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Encounter
 			tableName = "encounter";
 			Object[][] dateData = remoteDb.getTableData(tableName,
-					"DATE(date_created)", filter("date_created", null), true);
+					"DATE(date_created)",
+					filter("date_created", "date_changed"), true);
 			ArrayList<String> dates = new ArrayList<String>();
 			for (Object[] date : dateData) {
 				dates.add(date[0].toString());

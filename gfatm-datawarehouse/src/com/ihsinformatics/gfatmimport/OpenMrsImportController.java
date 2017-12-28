@@ -19,6 +19,7 @@ import java.util.logging.Logger;
 
 import com.ihsinformatics.util.CommandType;
 import com.ihsinformatics.util.DatabaseUtil;
+import com.ihsinformatics.util.DateTimeUtil;
 
 /**
  * @author owais.hussain@ihsinformatics.com
@@ -1286,11 +1287,26 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Data is too much to handle in single query; import in batches
 			// Encounter
 			tableName = "encounter";
-			Object[][] dateData = remoteDb.getTableData(tableName,
+			Object[][] createdDates = remoteDb.getTableData(tableName,
 					"DATE(date_created)",
-					filter("date_created", "date_changed"), true);
+					"WHERE date_created BETWEEN TIMESTAMP('"
+							+ DateTimeUtil.toSqlDateTimeString(fromDate)
+							+ "') AND TIMESTAMP('"
+							+ DateTimeUtil.toSqlDateTimeString(toDate) + "'))",
+					true);
+			Object[][] updatedDates = remoteDb.getTableData(
+					tableName,
+					"DATE(date_updated)",
+					"WHERE date_updated BETWEEN TIMESTAMP('"
+							+ DateTimeUtil.toSqlDateTimeString(fromDate)
+							+ "') AND TIMESTAMP('"
+							+ DateTimeUtil.toSqlDateTimeString(toDate) + "'))",
+					true);
 			ArrayList<String> dates = new ArrayList<String>();
-			for (Object[] date : dateData) {
+			for (Object[] date : createdDates) {
+				dates.add(date[0].toString());
+			}
+			for (Object[] date : updatedDates) {
 				dates.add(date[0].toString());
 			}
 			for (String date : dates) {
@@ -1306,7 +1322,6 @@ public class OpenMrsImportController extends AbstractImportController {
 						+ " AS t WHERE DATE(t.date_created) = '" + date + "'";
 				remoteSelectInsert(selectQuery, insertQuery,
 						remoteDb.getConnection(), targetDb.getConnection());
-
 			}
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
@@ -1330,10 +1345,10 @@ public class OpenMrsImportController extends AbstractImportController {
 
 			// Encounter Provider
 			tableName = "encounter_provider";
-			dateData = remoteDb.getTableData(tableName, "DATE(date_created)",
+			createdDates = remoteDb.getTableData(tableName, "DATE(date_created)",
 					filter("date_created", null), true);
 			dates = new ArrayList<String>();
-			for (Object[] date : dateData) {
+			for (Object[] date : createdDates) {
 				dates.add(date[0].toString());
 			}
 			for (String date : dates) {
@@ -1375,10 +1390,10 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Observation
 			tableName = "obs";
 			// Get all unique dates from within the date range
-			dateData = remoteDb.getTableData(tableName, "DATE(date_created)",
+			createdDates = remoteDb.getTableData(tableName, "DATE(date_created)",
 					filter("date_created", null), true);
 			dates = new ArrayList<String>();
-			for (Object[] date : dateData) {
+			for (Object[] date : createdDates) {
 				dates.add(date[0].toString());
 			}
 			for (String date : dates) {

@@ -398,7 +398,7 @@ public class DimensionController {
 				// Creating Primary key
 				db.runCommand(CommandType.ALTER, "alter table enc_"
 						+ encounterName
-						+ " add primary key surrogate_id (surrogate_id)");
+								+ " add primary key surrogate_id (surrogate_id), add key patient_id (patient_id), add key encounter_id (encounter_id)");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

@@ -436,7 +436,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
 			tableName = "user_property";
-			insertQuery = "INSERT INTO tmp_"
+			insertQuery = "INSERT IGNORE INTO tmp_"
 					+ tableName
 					+ " (surrogate_id, implementation_id, user_id, property, property_value) VALUES (?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId
@@ -1292,15 +1292,15 @@ public class OpenMrsImportController extends AbstractImportController {
 					"WHERE date_created BETWEEN TIMESTAMP('"
 							+ DateTimeUtil.toSqlDateTimeString(fromDate)
 							+ "') AND TIMESTAMP('"
-							+ DateTimeUtil.toSqlDateTimeString(toDate) + "'))",
+							+ DateTimeUtil.toSqlDateTimeString(toDate) + "')",
 					true);
 			Object[][] updatedDates = remoteDb.getTableData(
 					tableName,
-					"DATE(date_updated)",
-					"WHERE date_updated BETWEEN TIMESTAMP('"
+					"DATE(date_changed)",
+					"WHERE date_changed BETWEEN TIMESTAMP('"
 							+ DateTimeUtil.toSqlDateTimeString(fromDate)
 							+ "') AND TIMESTAMP('"
-							+ DateTimeUtil.toSqlDateTimeString(toDate) + "'))",
+							+ DateTimeUtil.toSqlDateTimeString(toDate) + "')",
 					true);
 			ArrayList<String> dates = new ArrayList<String>();
 			for (Object[] date : createdDates) {

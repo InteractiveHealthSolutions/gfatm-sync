@@ -34,7 +34,7 @@ public class FactController {
 	 */
 	public void modelFacts() {
 		try {
-			dwDb.runStoredProcedure("create_datawarehouse", null);
+			dwDb.runStoredProcedure("fact_modeling", null);
 		} catch (InstantiationException e) {
 			e.printStackTrace();
 		} catch (IllegalAccessException e) {

@@ -96,12 +96,12 @@ public class GfatmImportMain implements ActionListener {
 	private final JPanel progressPanel = new JPanel();
 	private final JPanel optionsPanel = new JPanel();
 
-	private final JLabel lblServerAddress = new JLabel("Server Address:");
+	private final JLabel lblServerAddress = new JLabel("Source Address:");
 	private final JLabel lblServerDriver = new JLabel("Driver:");
 	private final JLabel lblServerDatabase = new JLabel("Database:");
 	private final JLabel lblServerUsername = new JLabel("Username:");
 	private final JLabel lblServerPassword = new JLabel("Password:");
-	private final JLabel lblLocalAddress = new JLabel("Local Address:");
+	private final JLabel lblLocalAddress = new JLabel("Target Address:");
 	private final JLabel lblLocalDriver = new JLabel("Driver:");
 	private final JLabel lblLocalDatabase = new JLabel("Database:");
 	private final JLabel lblLocalUsername = new JLabel("Username:");

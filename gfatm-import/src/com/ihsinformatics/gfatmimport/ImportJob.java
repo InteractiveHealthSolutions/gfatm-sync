@@ -451,15 +451,6 @@ public class ImportJob implements Job {
 		insertQuery = "INSERT IGNORE INTO concept(concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid) SELECT concept_id,retired,short_name,description,form_text,datatype_id,class_id,is_set,creator,date_created,version,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid FROM temp_concept";
 		localInsert(insertQuery);
 
-		// concept_answer
-		createTempTable(getLocalDb(), "concept_answer");
-		insertQuery = "INSERT INTO temp_concept_answer(concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight)VALUES(?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight FROM concept_answer "
-				+ filter("date_created", null) + " ORDER BY date_created";
-		remoteSelectInsert(selectQuery, insertQuery);
-		insertQuery = "INSERT IGNORE INTO concept_answer(concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight) SELECT concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight FROM temp_concept_answer";
-		localInsert(insertQuery);
-
 		// concept_description
 		createTempTable(getLocalDb(), "concept_description");
 		insertQuery = "INSERT INTO temp_concept_description(concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid)VALUES(?,?,?,?,?,?,?,?,?)";
@@ -469,11 +460,35 @@ public class ImportJob implements Job {
 		insertQuery = "INSERT IGNORE INTO concept_description(concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid) SELECT concept_description_id,concept_id,description,locale,creator,date_created,changed_by,date_changed,uuid FROM temp_concept_description";
 		localInsert(insertQuery);
 
+		// concept_answer
+		createTempTable(getLocalDb(), "concept_answer");
+		insertQuery = "INSERT INTO temp_concept_answer(concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight)VALUES(?,?,?,?,?,?,?,?)";
+		// Also import the names whose concepts were changed
+		Object[][] data = getLocalDb().getTableData("temp_concept",
+				"concept_id", null, true);
+		StringBuilder ids = new StringBuilder();
+		for (Object[] o : data) {
+			ids.append(o[0].toString() + ",");
+		}
+		ids.append("0");
+		selectQuery = "SELECT concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight FROM concept_answer "
+				+ filter("date_created", null)
+				+ " OR concept_id IN ("
+				+ ids.toString() + ")"
+				+ " ORDER BY date_created";
+		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO concept_answer(concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight) SELECT concept_answer_id,concept_id,answer_concept,answer_drug,creator,date_created,uuid,sort_weight FROM temp_concept_answer";
+		localInsert(insertQuery);
+
 		// concept_name
 		createTempTable(getLocalDb(), "concept_name");
 		insertQuery = "INSERT INTO temp_concept_name(concept_id,name,locale,creator,date_created,concept_name_id,voided,voided_by,date_voided,void_reason,uuid,concept_name_type,locale_preferred)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		// Also import the names whose concepts were changed
 		selectQuery = "SELECT concept_id,name,locale,creator,date_created,concept_name_id,voided,voided_by,date_voided,void_reason,uuid,concept_name_type,locale_preferred FROM concept_name "
-				+ filter("date_created", null) + " ORDER BY date_created";
+				+ filter("date_created", null)
+				+ " OR concept_id IN ("
+				+ ids.toString() + ")"
+				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO concept_name(concept_id,name,locale,creator,date_created,concept_name_id,voided,voided_by,date_voided,void_reason,uuid,concept_name_type,locale_preferred) SELECT concept_id,name,locale,creator,date_created,concept_name_id,voided,voided_by,date_voided,void_reason,uuid,concept_name_type,locale_preferred FROM temp_concept_name";
 		localInsert(insertQuery);

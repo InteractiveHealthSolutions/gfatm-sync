@@ -1287,7 +1287,8 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Data is too much to handle in single query; import in batches
 			// Encounter
 			tableName = "encounter";
-			Object[][] createdDates = remoteDb.getTableData(tableName,
+			Object[][] createdDates = remoteDb.getTableData(
+					tableName,
 					"DATE(date_created)",
 					"WHERE date_created BETWEEN TIMESTAMP('"
 							+ DateTimeUtil.toSqlDateTimeString(fromDate)
@@ -1319,12 +1320,11 @@ public class OpenMrsImportController extends AbstractImportController {
 						+ implementationId
 						+ "', encounter_id, encounter_type, patient_id, location_id, form_id, encounter_datetime, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, visit_id, uuid FROM "
 						+ database + "." + tableName
-						+ " AS t WHERE DATE(t.date_created) = '" + date + "'";
+						+ " AS t WHERE DATE(t.date_created) = '" + date
+						+ "' OR DATE(t.date_changed) = '" + date + "'";
 				remoteSelectInsert(selectQuery, insertQuery,
 						remoteDb.getConnection(), targetDb.getConnection());
 			}
-			remoteSelectInsert(selectQuery, insertQuery,
-					remoteDb.getConnection(), targetDb.getConnection());
 			// Insert new records
 			insertQuery = "INSERT IGNORE INTO "
 					+ tableName
@@ -1345,8 +1345,8 @@ public class OpenMrsImportController extends AbstractImportController {
 
 			// Encounter Provider
 			tableName = "encounter_provider";
-			createdDates = remoteDb.getTableData(tableName, "DATE(date_created)",
-					filter("date_created", null), true);
+			createdDates = remoteDb.getTableData(tableName,
+					"DATE(date_created)", filter("date_created", null), true);
 			dates = new ArrayList<String>();
 			for (Object[] date : createdDates) {
 				dates.add(date[0].toString());
@@ -1390,8 +1390,8 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Observation
 			tableName = "obs";
 			// Get all unique dates from within the date range
-			createdDates = remoteDb.getTableData(tableName, "DATE(date_created)",
-					filter("date_created", null), true);
+			createdDates = remoteDb.getTableData(tableName,
+					"DATE(date_created)", filter("date_created", null), true);
 			dates = new ArrayList<String>();
 			for (Object[] date : createdDates) {
 				dates.add(date[0].toString());

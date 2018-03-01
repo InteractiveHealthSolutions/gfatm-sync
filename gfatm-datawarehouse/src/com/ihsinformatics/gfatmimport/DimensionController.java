@@ -160,7 +160,7 @@ public class DimensionController {
 	 * @throws InstantiationException
 	 * @throws IllegalAccessException
 	 * @throws ClassNotFoundException
-	 * @throws SQLException 
+	 * @throws SQLException
 	 */
 	public void conceptDimension(Date from, Date to, int implementationId)
 			throws InstantiationException, IllegalAccessException,
@@ -196,7 +196,7 @@ public class DimensionController {
 	 * @throws InstantiationException
 	 * @throws IllegalAccessException
 	 * @throws ClassNotFoundException
-	 * @throws SQLException 
+	 * @throws SQLException
 	 */
 	public void userDimension(Date from, Date to, int implementationId)
 			throws InstantiationException, IllegalAccessException,
@@ -234,7 +234,7 @@ public class DimensionController {
 	 * @throws InstantiationException
 	 * @throws IllegalAccessException
 	 * @throws ClassNotFoundException
-	 * @throws SQLException 
+	 * @throws SQLException
 	 */
 	public void encounterAndObsDimension(Date from, Date to,
 			int implementationId) throws InstantiationException,
@@ -254,7 +254,7 @@ public class DimensionController {
 	 * @throws InstantiationException
 	 * @throws IllegalAccessException
 	 * @throws ClassNotFoundException
-	 * @throws SQLException 
+	 * @throws SQLException
 	 */
 	public void userFormAndResultDimension(Date from, Date to,
 			int implementationId) throws InstantiationException,
@@ -397,9 +397,11 @@ public class DimensionController {
 							+ encounterType[1].toString());
 				}
 				// Creating Primary key
-				db.runCommand(CommandType.ALTER, "alter table enc_"
-						+ encounterName
-						+ " add primary key surrogate_id (surrogate_id), add key patient_id (patient_id), add key encounter_id (encounter_id)");
+				db.runCommand(
+						CommandType.ALTER,
+						"alter table enc_"
+								+ encounterName
+								+ " add primary key surrogate_id (surrogate_id), add key patient_id (patient_id), add key encounter_id (encounter_id)");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

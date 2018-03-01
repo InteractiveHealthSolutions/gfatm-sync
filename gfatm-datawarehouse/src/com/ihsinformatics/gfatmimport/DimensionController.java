@@ -383,12 +383,13 @@ public class DimensionController {
 					+ encounterType[0].toString() + "' ");
 			// Filter out all child observations (e.g. multi-select)
 			query.append("and o.obs_group_id is null ");
-			query.append("group by e.surrogate_id, e.implementation_id, e.encounter_id, e.patient_id, e.provider, e.location_id, l.location_name, e.patient_id, e.date_entered");
+			query.append("group by e.surrogate_id, e.implementation_id, e.encounter_id, e.patient_id, e.provider, e.location_id, e.date_entered");
 			// Drop previous table
 			db.runCommand(CommandType.DROP, "drop table if exists enc_"
 					+ encounterName);
 			log.info("Generating table for " + encounterType[1].toString());
 			try {
+				log.info("Executing: " + query.toString());
 				// Insert new data
 				Object result = db.runCommand(CommandType.CREATE,
 						query.toString());

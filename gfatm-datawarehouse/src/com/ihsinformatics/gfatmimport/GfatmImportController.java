@@ -78,13 +78,13 @@ public class GfatmImportController extends AbstractImportController {
 	 * @param implementationId
 	 */
 	private void clearTempTables(int implementationId) {
-		String[] tables = { "tmp_gfatm_element", "tmp_gfatm_location",
+		String[] tables = {"tmp_gfatm_element", "tmp_gfatm_location",
 				"tmp_gfatm_location_attribute",
 				"tmp_gfatm_location_attribute_type",
 				"tmp_gfatm_user_attribute", "tmp_gfatm_user_attribute_type",
 				"tmp_gfatm_user_form", "tmp_gfatm_user_form_result",
 				"tmp_gfatm_user_form_type", "tmp_gfatm_user_location",
-				"tmp_gfatm_user_role", "tmp_gfatm_users" };
+				"tmp_gfatm_user_role", "tmp_gfatm_users"};
 		for (String table : tables) {
 			try {
 				targetDb.runCommandWithException(CommandType.TRUNCATE,

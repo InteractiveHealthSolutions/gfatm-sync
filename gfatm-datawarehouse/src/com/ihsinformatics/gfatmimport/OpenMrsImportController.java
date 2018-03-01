@@ -90,7 +90,7 @@ public class OpenMrsImportController extends AbstractImportController {
 	 * @param implementationId
 	 */
 	private void clearTempTables(int implementationId) {
-		String[] tables = { "tmp_person", "tmp_person_attribute",
+		String[] tables = {"tmp_person", "tmp_person_attribute",
 				"tmp_person_attribute_type", "tmp_person_address",
 				"tmp_person_name", "tmp_role", "tmp_role_role",
 				"tmp_privilege", "tmp_role_privilege", "tmp_users",
@@ -108,7 +108,7 @@ public class OpenMrsImportController extends AbstractImportController {
 				"tmp_encounter", "tmp_encounter_provider", "tmp_obs",
 				"tmp_visit_type", "tmp_visit_attribute_type",
 				"tmp_visit_attribute", "tmp_field", "tmp_field_answer",
-				"tmp_field_type", "tmp_form_field" };
+				"tmp_field_type", "tmp_form_field"};
 		for (String table : tables) {
 			try {
 				targetDb.runCommandWithException(CommandType.TRUNCATE,
@@ -1401,10 +1401,10 @@ public class OpenMrsImportController extends AbstractImportController {
 						+ " into data warehouse for date " + date);
 				insertQuery = "INSERT INTO tmp_"
 						+ tableName
-						+ " (surrogate_id, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_boolean, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+						+ " (surrogate_id, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 				selectQuery = "SELECT 0,'"
 						+ implementationId
-						+ "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_boolean, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM "
+						+ "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM "
 						+ database + "." + tableName
 						+ " AS t WHERE DATE(t.date_created) = '" + date + "'";
 				remoteSelectInsert(selectQuery, insertQuery,
@@ -1424,7 +1424,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ tableName
 					+ " AS a, tmp_"
 					+ tableName
-					+ " AS t SET a.obs_id=t.obs_id,a.person_id=t.person_id,a.concept_id=t.concept_id,a.encounter_id=t.encounter_id,a.order_id=t.order_id,a.obs_datetime=t.obs_datetime,a.location_id=t.location_id,a.obs_group_id=t.obs_group_id,a.accession_number=t.accession_number,a.value_group_id=t.value_group_id,a.value_boolean=t.value_boolean,a.value_coded=t.value_coded,a.value_coded_name_id=t.value_coded_name_id,a.value_drug=t.value_drug,a.value_datetime=t.value_datetime,a.value_numeric=t.value_numeric,a.value_modifier=t.value_modifier,a.value_text =t.value_text ,a.value_complex=t.value_complex,a.comments=t.comments,a.creator=t.creator,a.date_created=t.date_created,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.previous_version=t.previous_version WHERE a.implementation_id = t.implementation_id = '"
+					+ " AS t SET a.obs_id=t.obs_id,a.person_id=t.person_id,a.concept_id=t.concept_id,a.encounter_id=t.encounter_id,a.order_id=t.order_id,a.obs_datetime=t.obs_datetime,a.location_id=t.location_id,a.obs_group_id=t.obs_group_id,a.accession_number=t.accession_number,a.value_group_id=t.value_group_id,a.value_coded=t.value_coded,a.value_coded_name_id=t.value_coded_name_id,a.value_drug=t.value_drug,a.value_datetime=t.value_datetime,a.value_numeric=t.value_numeric,a.value_modifier=t.value_modifier,a.value_text =t.value_text ,a.value_complex=t.value_complex,a.comments=t.comments,a.creator=t.creator,a.date_created=t.date_created,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.previous_version=t.previous_version WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {

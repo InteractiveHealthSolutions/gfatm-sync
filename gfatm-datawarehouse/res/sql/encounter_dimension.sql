@@ -11,7 +11,7 @@ where e.voided = 0 and not exists (select * from dim_encounter where implementat
 and ((e.date_created between date_from and date_to) or (e.date_changed between date_from and date_to));
 
 insert ignore into dim_obs 
-select o.surrogate_id, o.implementation_id, e.encounter_id, e.encounter_type, e.patient_id, p.patient_identifier, e.provider, o.obs_id, o.obs_group_id, o.concept_id, c.short_name as question, obs_datetime, o.location_id, concat(ifnull(ifnull(ifnull(c2.short_name, c2.default_name), c2.full_name), ''), ifnull(o.value_boolean, ''), ifnull(o.value_datetime, ''), ifnull(o.value_numeric, ''), ifnull(o.value_text, '')) as answer, o.value_boolean, o.value_coded, o.value_datetime, o.value_numeric, o.value_text, o.creator, o.date_created, o.voided, o.uuid from obs as o 
+select o.surrogate_id, o.implementation_id, e.encounter_id, e.encounter_type, e.patient_id, p.patient_identifier, e.provider, o.obs_id, o.obs_group_id, o.concept_id, c.short_name as question, obs_datetime, o.location_id, concat(ifnull(ifnull(ifnull(c2.short_name, c2.default_name), c2.full_name), ''), ifnull(o.value_datetime, ''), ifnull(o.value_numeric, ''), ifnull(o.value_text, '')) as answer, o.value_coded, o.value_datetime, o.value_numeric, o.value_text, o.creator, o.date_created, o.voided, o.uuid from obs as o 
 inner join dim_concept as c on c.implementation_id = o.implementation_id and c.concept_id = o.concept_id 
 inner join dim_encounter as e on e.implementation_id = o.implementation_id and e.encounter_id = o.encounter_id 
 inner join dim_patient as p on p.implementation_id = e.implementation_id and p.patient_id = e.patient_id 

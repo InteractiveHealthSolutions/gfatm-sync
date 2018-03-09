@@ -230,7 +230,7 @@ public class GfatmImportMain implements ActionListener {
 		mainFrame.setBounds(100, 100, 635, 425);
 		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		mainFrame.getContentPane().add(tabbedPane, BorderLayout.NORTH);
-		tabbedPane.addTab("Server Connection", null, serverPanel, null);
+		tabbedPane.addTab("Source Connection", null, serverPanel, null);
 		serverPanel.setLayout(new FormLayout(new ColumnSpec[] {
 				FormSpecs.RELATED_GAP_COLSPEC, ColumnSpec.decode("87px"),
 				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
@@ -257,7 +257,7 @@ public class GfatmImportMain implements ActionListener {
 		serverPanel.add(lblServerPassword, "10, 4, left, center");
 		serverPasswordField.setColumns(10);
 		serverPanel.add(serverPasswordField, "12, 4, left, top");
-		tabbedPane.addTab("Local Connection", null, clientPanel, null);
+		tabbedPane.addTab("Target Connection", null, clientPanel, null);
 		clientPanel.setLayout(new FormLayout(new ColumnSpec[] {
 				FormSpecs.RELATED_GAP_COLSPEC, ColumnSpec.decode("87px"),
 				FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,

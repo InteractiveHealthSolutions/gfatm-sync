@@ -721,19 +721,14 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ ".location_tag_map into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
 					remoteDb.getConnection(), targetDb.getConnection());
+			// Flush the existing table first
+			targetDb.truncateTable(tableName);
 			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT IGNORE INTO " + tableName
 					+ " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			updateQuery = "UPDATE "
-					+ tableName
-					+ " AS a, tmp_"
-					+ tableName
-					+ " AS t SET a.location_id = t.location_id, a.location_tag_id = t.location_tag_id WHERE a.implementation_id = t.implementation_id = '"
-					+ implementationId + "'";
-			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -1303,7 +1298,7 @@ public class OpenMrsImportController extends AbstractImportController {
 							+ "') AND TIMESTAMP('"
 							+ DateTimeUtil.toSqlDateTimeString(toDate) + "')",
 					true);
-			ArrayList<String> dates = new ArrayList<String>();
+			ArrayList<String> dates = new ArrayList<>();
 			for (Object[] date : createdDates) {
 				dates.add(date[0].toString());
 			}
@@ -1347,7 +1342,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			tableName = "encounter_provider";
 			createdDates = remoteDb.getTableData(tableName,
 					"DATE(date_created)", filter("date_created", null), true);
-			dates = new ArrayList<String>();
+			dates = new ArrayList<>();
 			for (Object[] date : createdDates) {
 				dates.add(date[0].toString());
 			}
@@ -1392,7 +1387,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Get all unique dates from within the date range
 			createdDates = remoteDb.getTableData(tableName,
 					"DATE(date_created)", filter("date_created", null), true);
-			dates = new ArrayList<String>();
+			dates = new ArrayList<>();
 			for (Object[] date : createdDates) {
 				dates.add(date[0].toString());
 			}

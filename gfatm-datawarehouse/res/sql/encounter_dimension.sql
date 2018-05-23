@@ -44,5 +44,17 @@ update dim_obs as o, tmp_group_obs as t
 set o.answer = t.answer 
 where o.implementation_id = t.implementation_id and o.obs_id = t.obs_group_id;
 
+drop table if exists tmp_dim_encounter;
+create table  tmp_dim_encounter 
+select e.surrogate_id, e.implementation_id, e.encounter_id, e.encounter_type, et.name as encounter_name, et.description, e.patient_id, e.location_id, p.identifier as provider, e.encounter_datetime as date_entered, e.creator, e.date_created as date_start, e.changed_by, e.date_changed, e.date_created as date_end, e.uuid from encounter as e 
+inner join encounter_type as et on et.implementation_id = e.implementation_id and et.encounter_type_id = e.encounter_type and et.retired = 0 
+left outer join encounter_provider as ep on ep.implementation_id = e.implementation_id and ep.encounter_id = e.encounter_id and ep.voided = 0 
+left outer join provider as p on p.implementation_id = e.implementation_id and p.provider_id = ep.provider_id and p.retired = 0 
+where e.voided = 0 and  (e.date_changed between date_from and date_to);
+
+update dim_encounter as de, tmp_dim_encounter as t 
+set de.patient_id = t.patient_id , de.location_id=t.location_id,de.provider=t.provider,de.date_entered=t.date_entered
+where de.implementation_id = t.implementation_id and de.encounter_id=t.encounter_id and de.encounter_type=t.encounter_type;
+
 END$$
 DELIMITER ;

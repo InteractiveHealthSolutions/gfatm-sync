@@ -230,8 +230,8 @@ SELECT 0, 1, concept_map_type_id, name, description, creator, date_created, chan
 INSERT INTO concept (surrogate_id, implementation_id, concept_id, retired, short_name, description, form_text, datatype_id, class_id, is_set, creator, date_created, version, changed_by, date_changed, retired_by, date_retired, retire_reason, uuid) 
 SELECT 0, 1, concept_id, retired, short_name, description, form_text, datatype_id, class_id, is_set, creator, date_created, version, changed_by, date_changed, retired_by, date_retired, retire_reason, uuid FROM openmrs.concept;
 
-INSERT INTO concept_name (surrogate_id, implementation_id, concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred) 
-SELECT 0, 1, concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred FROM openmrs.concept_name;
+INSERT INTO concept_name (surrogate_id, implementation_id, concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred, date_changed, changed_by) 
+SELECT 0, 1, concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred, date_changed, changed_by FROM openmrs.concept_name;
 
 INSERT INTO concept_description (surrogate_id, implementation_id, concept_description_id, concept_id, description, locale, creator, date_created, changed_by, date_changed, uuid) 
 SELECT 0, 1, concept_description_id, concept_id, description, locale, creator, date_created, changed_by, date_changed, uuid FROM openmrs.concept_description;
@@ -305,7 +305,11 @@ WHERE obs_id BETWEEN 15000001 AND 20000000;
 
 INSERT INTO obs (surrogate_id, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) 
 SELECT 0, 1, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM openmrs.obs 
-WHERE obs_id > 20000000;
+WHERE obs_id BETWEEN 20000001 AND 25000000;
+
+INSERT INTO obs (surrogate_id, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) 
+SELECT 0, 1, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM openmrs.obs 
+WHERE obs_id > 25000000;
 
 END$$
 DELIMITER ;

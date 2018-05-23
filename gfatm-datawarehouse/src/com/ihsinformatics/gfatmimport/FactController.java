@@ -35,14 +35,8 @@ public class FactController {
 	public void modelFacts() {
 		try {
 			dwDb.runStoredProcedure("fact_modeling", null);
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (SQLException e) {
-			e.printStackTrace();
+		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException | SQLException e) {
+			log.warning(e.getMessage());
 		}
 		log.info("Finished fact modeling");
 	}

@@ -68,7 +68,7 @@ public class GfatmImportController extends AbstractImportController {
 			importUserFormData(sourceDb, implementationId);
 			log.info("Import complete");
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -173,7 +173,7 @@ public class GfatmImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -291,7 +291,7 @@ public class GfatmImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -358,7 +358,7 @@ public class GfatmImportController extends AbstractImportController {
 			// Data is too much to handle in single query, so import in batches
 			dateData = remoteDb.getTableData(database + ".user_form",
 					"DATE(date_created)", filter("date_created", null), true);
-			dates = new ArrayList<String>();
+			dates = new ArrayList<>();
 			for (Object[] date : dateData) {
 				dates.add(date[0].toString());
 			}
@@ -388,7 +388,7 @@ public class GfatmImportController extends AbstractImportController {
 			// Data is too much to handle in single query, so import in batches
 			dateData = remoteDb.getTableData(database + ".user_form_result",
 					"DATE(date_created)", filter("date_created", null), true);
-			dates = new ArrayList<String>();
+			dates = new ArrayList<>();
 			for (Object[] date : dateData) {
 				dates.add(date[0].toString());
 			}
@@ -413,7 +413,7 @@ public class GfatmImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 }

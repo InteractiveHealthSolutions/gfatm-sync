@@ -80,7 +80,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			importFormData(sourceDb, implementationId);
 			log.info("Import complete");
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -113,8 +113,6 @@ public class OpenMrsImportController extends AbstractImportController {
 			try {
 				targetDb.runCommandWithException(CommandType.TRUNCATE,
 						"TRUNCATE TABLE " + table);
-			} catch (SQLException e) {
-				log.warning("Table: " + table + " not found in data warehouse!");
 			} catch (Exception e) {
 				log.warning("Table: " + table + " not found in data warehouse!");
 			}
@@ -289,7 +287,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -562,7 +560,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -729,9 +727,8 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -916,12 +913,12 @@ public class OpenMrsImportController extends AbstractImportController {
 			tableName = "concept_name";
 			insertQuery = "INSERT INTO tmp_"
 					+ tableName
-					+ " (surrogate_id, implementation_id, concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+					+ " (surrogate_id, implementation_id, concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred, date_changed, changed_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'"
 					+ implementationId
-					+ "', concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred FROM "
+					+ "', concept_id, name, locale, creator, date_created, concept_name_id, voided, voided_by, date_voided, void_reason, uuid, concept_name_type, locale_preferred, date_changed, changed_by FROM "
 					+ database + "." + tableName + " AS t "
-					+ filter("t.date_created", null);
+					+ filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database
 					+ ".concept_name into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery,
@@ -1040,7 +1037,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.concept_id = t.concept_id";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -1191,9 +1188,8 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " AS t SET a.patient_program_id=t.patient_program_id,a.patient_id=t.patient_id,a.program_id=t.program_id,a.date_enrolled=t.date_enrolled,a.date_completed=t.date_completed,a.location_id=t.location_id,a.outcome_concept_id=t.outcome_concept_id,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
-
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -1423,7 +1419,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -1542,7 +1538,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -1695,7 +1691,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
 		} catch (SQLException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 }

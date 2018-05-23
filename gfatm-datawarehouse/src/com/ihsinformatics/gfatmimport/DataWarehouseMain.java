@@ -31,9 +31,8 @@ import com.ihsinformatics.util.DateTimeUtil;
 public class DataWarehouseMain {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
-	public static String resourceFilePath = System.getProperty("user.home")
-			+ File.separatorChar + "gfatm" + File.separatorChar
-			+ "gfatm-sync.properties";
+	public static String resourceFilePath = System.getProperty("user.home") + File.separatorChar + "gfatm"
+			+ File.separatorChar + "gfatm-sync.properties";
 	private DatabaseUtil dwDb;
 	private Properties props;
 	private String dwSchema;
@@ -49,19 +48,18 @@ public class DataWarehouseMain {
 	public static void main(String[] args) {
 		// Check arguments first
 		if (args[0] == null || args.length == 0) {
-			System.out
-					.println("Arguments are invalid. Arguments must be provided as:");
-			System.out.println("-p path to database properties file");
-			System.out.println("-X to hard reset data warehouse");
-			System.out.println("-d to delete warehouse schema");
-			System.out
-					.println("-c to create data warehouse dimentions and fact tables");
-			System.out.println("-i to import data from external sources");
-			System.out
-					.println("-r to import data for a specific date (can be used only with -i parameter)");
-			System.out.println("-D to update data warehouse dimensions");
-			System.out.println("-F to update data warehouse facts");
-			return;
+			StringBuilder sb = new StringBuilder();
+			sb.append("Arguments are invalid. Arguments must be provided as:\r\n");
+			sb.append("-p path to database properties file\\r\\n");
+			sb.append("-X to hard reset data warehouse\\r\\n");
+			sb.append("-d to delete warehouse schema\\r\\n");
+			sb.append("-c to create data warehouse dimentions and fact tables\\r\\n");
+			sb.append("-i to import data from external sources\\r\\n");
+			sb.append("-r to import data for a specific date (can be used only with -i parameter)\\r\\n");
+			sb.append("-D to update data warehouse dimensions\\r\\n");
+			sb.append("-F to update data warehouse facts\\r\\n");
+			System.out.println(sb.toString());
+			System.exit(0);
 		}
 		boolean doDelete = false;
 		boolean doCreate = false;
@@ -83,8 +81,8 @@ public class DataWarehouseMain {
 				doRestrictDate = true;
 				forDate = DateTimeUtil.fromSqlDateString(args[i + 1]);
 				if (forDate == null) {
-					System.out
-							.println("Invalid date provided. Please specify date in SQL format without quotes, i.e. yyyy-MM-dd");
+					System.out.println(
+							"Invalid date provided. Please specify date in SQL format without quotes, i.e. yyyy-MM-dd");
 				}
 			} else if (args[i].equals("-D")) {
 				doDimensions = true;
@@ -94,7 +92,7 @@ public class DataWarehouseMain {
 				log.info("Hard reset function is currently under development.");
 			}
 		}
-		if (!(doDelete | doCreate | doImport | doDimensions | doFacts)) {
+		if (!(doDelete || doCreate || doImport || doDimensions || doFacts)) {
 			System.out.println("No valid parameters are defined. Exiting");
 			System.exit(-1);
 		}
@@ -102,10 +100,11 @@ public class DataWarehouseMain {
 		DataWarehouseMain dwObj = new DataWarehouseMain();
 		dwObj.readProperties(resourceFilePath);
 		// Fetch source databases from _implementation table
-		Object[][] sources = dwObj.dwDb
-				.getTableData("SELECT implementation_id,connection_url,driver,db_name,username,password,date_added,last_updated FROM _implementation WHERE active=1 AND status<>'RUNNING'");
+		Object[][] sources = dwObj.dwDb.getTableData(
+				"SELECT implementation_id,connection_url,driver,db_name,username,password,date_added,last_updated FROM _implementation WHERE active=1 AND status<>'RUNNING'");
 		if (sources.length == 0) {
-			log.warning("Another instance is already running. Please check the _implementation table for confirmation.");
+			log.warning(
+					"Another instance is already running. Please check the _implementation table for confirmation.");
 			System.exit(-1);
 		}
 		// Run for each source
@@ -118,22 +117,18 @@ public class DataWarehouseMain {
 			String username = source[4].toString();
 			String password = source[5].toString();
 			if (source[7] == null) {
-				source[7] = new String("2000-01-01 00:00:00");
+				source[7] = "2000-01-01 00:00:00";
 			}
-			DatabaseUtil openbMrsDb = new DatabaseUtil(url, dbName, driverName,
-					username, password);
-			DatabaseUtil gfatmMrsDb = new DatabaseUtil(url, "gfatm",
-					driverName, username, password);
+			DatabaseUtil openbMrsDb = new DatabaseUtil(url, dbName, driverName, username, password);
+			DatabaseUtil gfatmMrsDb = new DatabaseUtil(url, "gfatm", driverName, username, password);
 			try {
-				Date lastUpdated = DateTimeUtil.fromSqlDateTimeString(source[7]
-						.toString());
-				OpenMrsImportController openMrsImportController = new OpenMrsImportController(
-						openbMrsDb, dwObj.dwDb, lastUpdated, new Date());
-				GfatmImportController gfatmImportController = new GfatmImportController(
-						gfatmMrsDb, dwObj.dwDb, lastUpdated, new Date());
+				Date lastUpdated = DateTimeUtil.fromSqlDateTimeString(source[7].toString());
+				OpenMrsImportController openMrsImportController = new OpenMrsImportController(openbMrsDb, dwObj.dwDb,
+						lastUpdated, new Date());
+				GfatmImportController gfatmImportController = new GfatmImportController(gfatmMrsDb, dwObj.dwDb,
+						lastUpdated, new Date());
 				// Update status of implementation record
-				dwObj.dwDb.updateRecord("_implementation",
-						new String[]{"status"}, new String[]{"RUNNING"},
+				dwObj.dwDb.updateRecord("_implementation", new String[] { "status" }, new String[] { "RUNNING" },
 						"implementation_id='" + implementationId + "'");
 				if (doDelete) {
 					dwObj.destroyDatawarehouse();
@@ -162,31 +157,28 @@ public class DataWarehouseMain {
 					openMrsImportController.importData(implementationId);
 				}
 				if (doDimensions) {
-					DimensionController dimController = new DimensionController(
-							dwObj.dwDb);
+					DimensionController dimController = new DimensionController(dwObj.dwDb);
 					log.info("Starting dimension modeling");
 					dimController.modelDimensions();
 					log.info("Dimension modeling complete");
 				}
 				if (doFacts) {
-					FactController factController = new FactController(
-							dwObj.dwDb);
+					FactController factController = new FactController(dwObj.dwDb);
 					log.info("Starting fact modeling");
 					factController.modelFacts();
 					log.info("Fact modeling complete");
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				log.warning(e.getMessage());
 			} finally {
 				try {
 					log.info("Updating _implementation table status");
 					// Update the status in _implementation table
-					dwObj.dwDb.updateRecord("_implementation", new String[]{
-							"status", "last_updated"}, new String[]{"STOPPED",
-							DateTimeUtil.toSqlDateString(new Date())},
+					dwObj.dwDb.updateRecord("_implementation", new String[] { "status", "last_updated" },
+							new String[] { "STOPPED", DateTimeUtil.toSqlDateString(new Date()) },
 							"implementation_id='" + implementationId + "'");
 				} catch (Exception e) {
-					e.printStackTrace();
+					log.warning(e.getMessage());
 				}
 			}
 		}
@@ -202,8 +194,7 @@ public class DataWarehouseMain {
 			InputStream propFile = new FileInputStream(propertiesFile);
 			props.load(propFile);
 			String url = props.getProperty("local.connection.url");
-			String driverName = props
-					.getProperty("local.connection.driver_class");
+			String driverName = props.getProperty("local.connection.driver_class");
 			dwSchema = props.getProperty("local.connection.database");
 			String username = props.getProperty("local.connection.username");
 			String password = props.getProperty("local.connection.password");
@@ -219,7 +210,7 @@ public class DataWarehouseMain {
 				System.exit(-1);
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 			System.exit(-1);
 		}
 	}
@@ -232,14 +223,8 @@ public class DataWarehouseMain {
 			log.info("Deleting dimensions and facts.");
 			dwDb.runStoredProcedure("destroy_datawarehouse", null);
 			log.info("Dimensions and facts deleted.");
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (SQLException e) {
-			e.printStackTrace();
+		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException | SQLException e) {
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -251,14 +236,8 @@ public class DataWarehouseMain {
 			log.info("Creating dimensions and facts.");
 			dwDb.runStoredProcedure("create_datawarehouse", null);
 			log.info("Dimensions and facts created.");
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (SQLException e) {
-			e.printStackTrace();
+		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException | SQLException e) {
+			log.warning(e.getMessage());
 		}
 	}
 }

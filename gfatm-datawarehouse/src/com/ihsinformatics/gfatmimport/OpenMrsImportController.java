@@ -1383,8 +1383,13 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Get all unique dates from within the date range
 			createdDates = remoteDb.getTableData(tableName,
 					"DATE(date_created)", filter("date_created", null), true);
+			Object[][] voidedDates = remoteDb.getTableData(tableName, 
+					"DATE(date_voided)", filter("date_voided", null), true);
 			dates = new ArrayList<>();
 			for (Object[] date : createdDates) {
+				dates.add(date[0].toString());
+			}
+			for (Object[] date : voidedDates) {
 				dates.add(date[0].toString());
 			}
 			for (String date : dates) {

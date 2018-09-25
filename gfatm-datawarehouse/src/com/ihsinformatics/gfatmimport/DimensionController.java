@@ -44,8 +44,7 @@ public class DimensionController {
 		Calendar from = Calendar.getInstance();
 		from.set(2000, 0, 1);
 		Calendar to = Calendar.getInstance();
-		Object[][] sources = db.getTableData("_implementation",
-				"implementation_id", "active=1 AND status='RUNNING'");
+		Object[][] sources = db.getTableData("_implementation", "implementation_id", "active=1 AND status='RUNNING'");
 		// For each source, model dimensions
 		// TODO: Restrict by date
 		for (Object[] source : sources) {
@@ -102,6 +101,7 @@ public class DimensionController {
 		try {
 			log.info("Starting deencounterizing process");
 			deencounterizeOpenMrs();
+			deencounterizeOpenMrsExtended();
 			deencounterizeGfatm();
 			log.info("Deencounterizing process complete");
 		} catch (Exception e) {
@@ -117,17 +117,15 @@ public class DimensionController {
 	 * @throws ClassNotFoundException
 	 * @throws ParseException
 	 */
-	public void timeDimension() throws InstantiationException,
-			IllegalAccessException, ClassNotFoundException, ParseException {
-		Object lastSqlDate = db.runCommand(CommandType.SELECT,
-				"select max(full_date) as latest from dim_datetime");
+	public void timeDimension()
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException, ParseException {
+		Object lastSqlDate = db.runCommand(CommandType.SELECT, "select max(full_date) as latest from dim_datetime");
 		Calendar start = Calendar.getInstance();
 		start.set(Calendar.YEAR, 2000);
 		start.set(Calendar.MONTH, Calendar.JANUARY);
 		start.set(Calendar.DATE, 1);
 		if (lastSqlDate != null) {
-			Date latestDate = DateTimeUtil.fromSqlDateString(lastSqlDate
-					.toString());
+			Date latestDate = DateTimeUtil.fromSqlDateString(lastSqlDate.toString());
 			start.setTime(latestDate);
 		}
 		start.add(Calendar.DATE, 1);
@@ -136,11 +134,9 @@ public class DimensionController {
 		if (!start.getTime().before(end.getTime())) {
 			return;
 		}
-		StringBuilder query = new StringBuilder(
-				"insert into dim_datetime values ");
+		StringBuilder query = new StringBuilder("insert into dim_datetime values ");
 		while (start.getTime().before(end.getTime())) {
-			String sqlDate = "'"
-					+ DateTimeUtil.toSqlDateString(start.getTime()) + "'";
+			String sqlDate = "'" + DateTimeUtil.toSqlDateString(start.getTime()) + "'";
 			query.append("(0, " + sqlDate + ", ");
 			query.append("year(" + sqlDate + "), ");
 			query.append("month(" + sqlDate + "), ");
@@ -163,8 +159,7 @@ public class DimensionController {
 	 * @throws SQLException
 	 */
 	public void conceptDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException,
-			ClassNotFoundException, SQLException {
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
 		log.info("Transforming concept attributes.");
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("impl_id", implementationId);
@@ -181,8 +176,7 @@ public class DimensionController {
 	 * @throws SQLException
 	 */
 	public void locationDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException,
-			ClassNotFoundException, SQLException {
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
 		log.info("Transforming location attributes.");
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("impl_id", implementationId);
@@ -199,8 +193,7 @@ public class DimensionController {
 	 * @throws SQLException
 	 */
 	public void userDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException,
-			ClassNotFoundException, SQLException {
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
 		log.info("Transforming user attributes.");
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("impl_id", implementationId);
@@ -217,8 +210,7 @@ public class DimensionController {
 	 * @throws SQLException
 	 */
 	public void patientDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException,
-			ClassNotFoundException, SQLException {
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
 		log.info("Transforming patient attributes.");
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("impl_id", implementationId);
@@ -236,9 +228,8 @@ public class DimensionController {
 	 * @throws ClassNotFoundException
 	 * @throws SQLException
 	 */
-	public void encounterAndObsDimension(Date from, Date to,
-			int implementationId) throws InstantiationException,
-			IllegalAccessException, ClassNotFoundException, SQLException {
+	public void encounterAndObsDimension(Date from, Date to, int implementationId)
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
 		log.info("Transforming encounter attributes.");
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("impl_id", implementationId);
@@ -256,9 +247,8 @@ public class DimensionController {
 	 * @throws ClassNotFoundException
 	 * @throws SQLException
 	 */
-	public void userFormAndResultDimension(Date from, Date to,
-			int implementationId) throws InstantiationException,
-			IllegalAccessException, ClassNotFoundException, SQLException {
+	public void userFormAndResultDimension(Date from, Date to, int implementationId)
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
 		log.info("Transforming user form attributes.");
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("impl_id", implementationId);
@@ -271,12 +261,10 @@ public class DimensionController {
 	public void deencounterizeGfatm() {
 		// Create a temporary table to save questions for each user form type
 		db.runCommand(CommandType.DROP, "drop table if exists tmp");
-		db.runCommand(
-				CommandType.CREATE,
+		db.runCommand(CommandType.CREATE,
 				"create table tmp select distinct user_form_type_id, element_id, element_name as question from dim_user_form_result");
 		// Fetch user form types and names
-		Object[][] userFormTypes = db.getTableData("dim_user_form",
-				"distinct user_form_type_id, user_form_type", null);
+		Object[][] userFormTypes = db.getTableData("dim_user_form", "distinct user_form_type_id, user_form_type", null);
 		if (userFormTypes == null) {
 			log.severe("User Form types could not be fetched");
 			return;
@@ -284,8 +272,7 @@ public class DimensionController {
 		for (Object[] userFormType : userFormTypes) {
 			StringBuilder query = new StringBuilder();
 			// Create a de-encounterized table
-			Object[][] data = db.getTableData("tmp", "question",
-					"user_form_type_id=" + userFormType[0].toString());
+			Object[][] data = db.getTableData("tmp", "question", "user_form_type_id=" + userFormType[0].toString());
 			ArrayList<String> elements = new ArrayList<String>();
 			for (int i = 0; i < data.length; i++) {
 				if (data[i][0] == null) {
@@ -295,39 +282,36 @@ public class DimensionController {
 			}
 			StringBuilder groupConcat = new StringBuilder();
 			for (Object element : elements) {
-				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_")
-						.toLowerCase();
-				groupConcat.append("group_concat(if(ufr.element_name = '"
-						+ element + "', ufr.result, NULL)) AS " + str + ", ");
+				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_").toLowerCase();
+				groupConcat.append(
+						"group_concat(if(ufr.element_name = '" + element + "', ufr.result, NULL)) AS " + str + ", ");
 			}
-			String userFormName = userFormType[1].toString().toLowerCase()
-					.replace(" ", "_").replace("-", "_");
+			String userFormName = userFormType[1].toString().toLowerCase().replace(" ", "_").replace("-", "_");
 			query.append("create table uform_" + userFormName + " ");
-			query.append("select uf.surrogate_id, uf.implementation_id, uf.user_form_id, uf.user_id, u.username, uf.location_id, l.location_name, uf.date_entered, ");
+			query.append(
+					"select uf.surrogate_id, uf.implementation_id, uf.user_form_id, uf.user_id, u.username, uf.location_id, l.location_name, uf.date_entered, ");
 			query.append(groupConcat.toString());
 			query.append("'' as BLANK from dim_user_form as uf ");
 			query.append("inner join dim_user_form_result as ufr on ufr.user_form_id = uf.user_form_id ");
-			query.append("left outer join gfatm_users as u on u.implementation_id = uf.implementation_id and u.user_id = uf.user_id ");
-			query.append("left outer join gfatm_location as l on l.implementation_id = uf.implementation_id and l.location_id = uf.location_id ");
-			query.append("where uf.user_form_type_id = '"
-					+ userFormType[0].toString() + "' ");
-			query.append("group by uf.surrogate_id, uf.implementation_id, uf.user_form_id, uf.user_id, u.username, uf.location_id, l.location_name, uf.date_entered");
+			query.append(
+					"left outer join gfatm_users as u on u.implementation_id = uf.implementation_id and u.user_id = uf.user_id ");
+			query.append(
+					"left outer join gfatm_location as l on l.implementation_id = uf.implementation_id and l.location_id = uf.location_id ");
+			query.append("where uf.user_form_type_id = '" + userFormType[0].toString() + "' ");
+			query.append(
+					"group by uf.surrogate_id, uf.implementation_id, uf.user_form_id, uf.user_id, u.username, uf.location_id, l.location_name, uf.date_entered");
 			// Drop previous table
-			db.runCommand(CommandType.DROP, "drop table if exists uform_"
-					+ userFormName);
+			db.runCommand(CommandType.DROP, "drop table if exists uform_" + userFormName);
 			log.info("Generating table for " + userFormType[1].toString());
 			try {
 				// Insert new data
-				Object result = db.runCommand(CommandType.CREATE,
-						query.toString());
+				Object result = db.runCommand(CommandType.CREATE, query.toString());
 				if (result == null) {
-					log.warning("No data imported for User Form "
-							+ userFormType[1].toString());
+					log.warning("No data imported for User Form " + userFormType[1].toString());
 				}
 				// Creating Primary key
-				db.runCommand(CommandType.ALTER, "alter table uform_"
-						+ userFormName
-						+ " add primary key surrogate_id (surrogate_id)");
+				db.runCommand(CommandType.ALTER,
+						"alter table uform_" + userFormName + " add primary key surrogate_id (surrogate_id)");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -341,12 +325,10 @@ public class DimensionController {
 	public void deencounterizeOpenMrs() {
 		// Create a temporary table to save questions for each encounter type
 		db.runCommand(CommandType.DROP, "drop table if exists tmp");
-		db.runCommand(
-				CommandType.CREATE,
+		db.runCommand(CommandType.CREATE,
 				"create table tmp select distinct encounter_type, concept_id, question from dim_obs");
 		// Fetch encounter types and names
-		Object[][] encounterTypes = db.getTableData("dim_encounter",
-				"distinct encounter_type, encounter_name", null);
+		Object[][] encounterTypes = db.getTableData("dim_encounter", "distinct encounter_type, encounter_name", null);
 		if (encounterTypes == null) {
 			log.severe("Encounter types could not be fetched");
 			return;
@@ -354,8 +336,7 @@ public class DimensionController {
 		for (Object[] encounterType : encounterTypes) {
 			StringBuilder query = new StringBuilder();
 			// Create a de-encounterized table
-			Object[][] data = db.getTableData("tmp", "question",
-					"encounter_type=" + encounterType[0].toString());
+			Object[][] data = db.getTableData("tmp", "question", "encounter_type=" + encounterType[0].toString());
 			ArrayList<String> elements = new ArrayList<String>();
 			for (int i = 0; i < data.length; i++) {
 				if (data[i][0] == null) {
@@ -365,44 +346,97 @@ public class DimensionController {
 			}
 			StringBuilder groupConcat = new StringBuilder();
 			for (Object element : elements) {
-				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_")
-						.toLowerCase();
-				groupConcat.append("group_concat(if(o.question = '" + element
-						+ "', o.answer, NULL)) AS " + str + ", ");
+				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_").toLowerCase();
+				groupConcat.append("group_concat(if(o.question = '" + element + "', o.answer, NULL)) AS " + str + ", ");
 			}
-			String encounterName = encounterType[1].toString().toLowerCase()
-					.replace(" ", "_").replace("-", "_");
-			query.append("create table enc_" + encounterName
-					+ " engine=InnoDB ");
-			query.append("select e.surrogate_id, e.implementation_id, e.encounter_id,  e.provider, e.location_id, l.location_name, e.patient_id, e.date_entered, ");
+			String encounterName = encounterType[1].toString().toLowerCase().replace(" ", "_").replace("-", "_");
+			query.append("create table enc_" + encounterName + " engine=InnoDB ");
+			query.append(
+					"select e.surrogate_id, e.implementation_id, e.encounter_id,  e.provider, e.location_id, l.location_name, e.patient_id, e.date_entered, ");
 			query.append(groupConcat.toString());
 			query.append("'' as BLANK from dim_encounter as e ");
 			query.append("inner join dim_obs as o on o.encounter_id = e.encounter_id and o.voided = 0 ");
 			query.append("inner join dim_location as l on l.location_id = e.location_id ");
-			query.append("where e.encounter_type = '"
-					+ encounterType[0].toString() + "' ");
+			query.append("where e.encounter_type = '" + encounterType[0].toString() + "' ");
 			// Filter out all child observations (e.g. multi-select)
 			query.append("and o.obs_group_id is null ");
-			query.append("group by e.surrogate_id, e.implementation_id, e.encounter_id, e.patient_id, e.provider, e.location_id, e.date_entered");
+			query.append(
+					"group by e.surrogate_id, e.implementation_id, e.encounter_id, e.patient_id, e.provider, e.location_id, e.date_entered");
 			// Drop previous table
-			db.runCommand(CommandType.DROP, "drop table if exists enc_"
-					+ encounterName);
+			db.runCommand(CommandType.DROP, "drop table if exists enc_" + encounterName);
 			log.info("Generating table for " + encounterType[1].toString());
 			try {
 				log.info("Executing: " + query.toString());
 				// Insert new data
-				Object result = db.runCommand(CommandType.CREATE,
-						query.toString());
+				Object result = db.runCommand(CommandType.CREATE, query.toString());
 				if (result == null) {
-					log.warning("No data imported for Encounter "
-							+ encounterType[1].toString());
+					log.warning("No data imported for Encounter " + encounterType[1].toString());
 				}
 				// Creating Primary key
-				db.runCommand(
-						CommandType.ALTER,
-						"alter table enc_"
-								+ encounterName
-								+ " add primary key surrogate_id (surrogate_id), add key patient_id (patient_id), add key encounter_id (encounter_id)");
+				db.runCommand(CommandType.ALTER, "alter table enc_" + encounterName
+						+ " add primary key surrogate_id (surrogate_id), add key patient_id (patient_id), add key encounter_id (encounter_id)");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	/**
+	 * Transforms the common-lab module data into separate tables
+	 */
+	public void deencounterizeOpenMrsExtended() {
+		// Create a temporary table to save questions for each encounter type
+		db.runCommand(CommandType.DROP, "drop table if exists tmp");
+		db.runCommand(CommandType.CREATE,
+				"create table tmp select distinct encounter_type, concept_id, question from dim_obs");
+		// Fetch encounter types and names
+		Object[][] testTypes = db.getTableData("commonlabtest_type", "distinct test_type_id, short_name", null);
+		if (testTypes == null) {
+			log.severe("Lab test types could not be fetched");
+			return;
+		}
+		for (Object[] testType : testTypes) {
+			StringBuilder query = new StringBuilder();
+			// Create a de-encounterized table
+			Object[][] data = db.getTableData("tmp", "short_name", "test_type_id=" + testType[0].toString());
+			ArrayList<String> elements = new ArrayList<String>();
+			for (int i = 0; i < data.length; i++) {
+				if (data[i][0] == null) {
+					continue;
+				}
+				elements.add(data[i][0].toString());
+			}
+			StringBuilder groupConcat = new StringBuilder();
+			for (Object element : elements) {
+				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_").toLowerCase();
+				groupConcat.append("group_concat(if(o.question = '" + element + "', o.answer, NULL)) AS " + str + ", ");
+			}
+			String encounterName = testType[1].toString().toLowerCase().replace(" ", "_").replace("-", "_");
+			query.append("create table enc_" + encounterName + " engine=InnoDB ");
+			query.append(
+					"select e.surrogate_id, e.implementation_id, e.encounter_id,  e.provider, e.location_id, l.location_name, e.patient_id, e.date_entered, ");
+			query.append(groupConcat.toString());
+			query.append("'' as BLANK from dim_encounter as e ");
+			query.append("inner join dim_obs as o on o.encounter_id = e.encounter_id and o.voided = 0 ");
+			query.append("inner join dim_location as l on l.location_id = e.location_id ");
+			query.append("where e.encounter_type = '" + testType[0].toString() + "' ");
+			// Filter out all child observations (e.g. multi-select)
+			query.append("and o.obs_group_id is null ");
+			query.append(
+					"group by e.surrogate_id, e.implementation_id, e.encounter_id, e.patient_id, e.provider, e.location_id, e.date_entered");
+			// Drop previous table
+			db.runCommand(CommandType.DROP, "drop table if exists enc_" + encounterName);
+			log.info("Generating table for " + testType[1].toString());
+			try {
+				log.info("Executing: " + query.toString());
+				// Insert new data
+				Object result = db.runCommand(CommandType.CREATE, query.toString());
+				if (result == null) {
+					log.warning("No data imported for Encounter " + testType[1].toString());
+				}
+				// Creating Primary key
+				db.runCommand(CommandType.ALTER, "alter table enc_" + encounterName
+						+ " add primary key surrogate_id (surrogate_id), add key patient_id (patient_id), add key encounter_id (encounter_id)");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

@@ -119,12 +119,14 @@ public class DataWarehouseMain {
 			if (source[7] == null) {
 				source[7] = "2000-01-01 00:00:00";
 			}
-			DatabaseUtil openbMrsDb = new DatabaseUtil(url, dbName, driverName, username, password);
+			DatabaseUtil openMrsDb = new DatabaseUtil(url, dbName, driverName, username, password);
 			DatabaseUtil gfatmMrsDb = new DatabaseUtil(url, "gfatm", driverName, username, password);
 			try {
 				Date lastUpdated = DateTimeUtil.fromSqlDateTimeString(source[7].toString());
-				OpenMrsImportController openMrsImportController = new OpenMrsImportController(openbMrsDb, dwObj.dwDb,
+				OpenMrsImportController openMrsImportController = new OpenMrsImportController(openMrsDb, dwObj.dwDb,
 						lastUpdated, new Date());
+				OpenMrsExtendedImportController openMrsExtendedImportController = new OpenMrsExtendedImportController(
+						openMrsDb, dwObj.dwDb, lastUpdated, new Date());
 				GfatmImportController gfatmImportController = new GfatmImportController(gfatmMrsDb, dwObj.dwDb,
 						lastUpdated, new Date());
 				// Update status of implementation record
@@ -147,14 +149,18 @@ public class DataWarehouseMain {
 						to.set(Calendar.SECOND, 59);
 						gfatmImportController.fromDate = from.getTime();
 						openMrsImportController.fromDate = from.getTime();
+						openMrsExtendedImportController.fromDate = from.getTime();
 						// Increase the time to last second of the day
 						gfatmImportController.toDate = to.getTime();
 						openMrsImportController.toDate = to.getTime();
+						openMrsExtendedImportController.toDate = to.getTime();
 					}
 					log.info("Importing GFATM data...");
 					gfatmImportController.importData(implementationId);
 					log.info("Importing OpenMRS data...");
 					openMrsImportController.importData(implementationId);
+					log.info("Importing OpenMRS modules data...");
+					openMrsExtendedImportController.importData(implementationId);
 				}
 				if (doDimensions) {
 					DimensionController dimController = new DimensionController(dwObj.dwDb);

@@ -74,6 +74,8 @@ public class OpenMrsImportController extends AbstractImportController {
 			importEncounterData(sourceDb, implementationId);
 			log.info("Importing visit data...");
 			importVisitData(sourceDb, implementationId);
+			log.info("Importing order data...");
+			importOrderData(sourceDb, implementationId);
 			log.info("Importing forms data...");
 			importFormData(sourceDb, implementationId);
 			log.info("Import complete");
@@ -96,9 +98,9 @@ public class OpenMrsImportController extends AbstractImportController {
 				"tmp_concept_datatype", "tmp_concept_map_type", "tmp_concept", "tmp_concept_name",
 				"tmp_concept_description", "tmp_concept_answer", "tmp_concept_numeric", "tmp_patient_identifier_type",
 				"tmp_patient", "tmp_patient_identifier", "tmp_patient_program", "tmp_encounter_type", "tmp_form",
-				"tmp_encounter_role", "tmp_encounter", "tmp_encounter_provider", "tmp_obs", "tmp_visit_type",
-				"tmp_visit_attribute_type", "tmp_visit_attribute", "tmp_field", "tmp_field_answer", "tmp_field_type",
-				"tmp_form_field" };
+				"tmp_encounter_role", "tmp_encounter", "tmp_encounter_provider", "tmp_obs", "tmp_orders",
+				"tmp_visit_type", "tmp_visit_attribute_type", "tmp_visit_attribute", "tmp_field", "tmp_field_answer",
+				"tmp_field_type", "tmp_form_field" };
 		for (String table : tables) {
 			try {
 				targetDb.runCommandWithException(CommandType.TRUNCATE, "TRUNCATE TABLE " + table);
@@ -946,6 +948,16 @@ public class OpenMrsImportController extends AbstractImportController {
 			for (Object[] date : createdDates) {
 				dates.add(date[0].toString());
 			}
+			for (String date : dates) {
+				log.info("Inserting data from " + database + "." + tableName + " into data warehouse for date " + date);
+				insertQuery = "INSERT INTO tmp_" + tableName
+						+ " (surrogate_id, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+				selectQuery = "SELECT 0,'" + implementationId
+						+ "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM "
+						+ database + "." + tableName + " AS t WHERE DATE(t.date_created) = '" + date + "'";
+				remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
+			}
+			dates = new ArrayList<>();
 			for (Object[] date : voidedDates) {
 				dates.add(date[0].toString());
 			}
@@ -955,7 +967,7 @@ public class OpenMrsImportController extends AbstractImportController {
 						+ " (surrogate_id, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 				selectQuery = "SELECT 0,'" + implementationId
 						+ "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM "
-						+ database + "." + tableName + " AS t WHERE DATE(t.date_created) = '" + date + "'";
+						+ database + "." + tableName + " AS t WHERE DATE(t.date_voided) = '" + date + "'";
 				remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
 			}
 			// Insert new records
@@ -1152,6 +1164,50 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.field_type_id =t.field_type_id ,a.name =t.name ,a.description =t.description ,a.is_set =t.is_set ,a.creator =t.creator ,a.date_created =t.date_created WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
+		} catch (SQLException e) {
+			log.warning(e.getMessage());
+		}
+	}
+
+	/**
+	 * Load data from orders-related tables into data warehouse
+	 * 
+	 * @param implementationId
+	 * @param database
+	 * @throws ClassNotFoundException
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
+	 */
+	public void importOrderData(DatabaseUtil remoteDb, int implementationId)
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+
+		String database = remoteDb.getDbName();
+		String insertQuery;
+		String updateQuery;
+		String selectQuery;
+		String tableName;
+
+		try {
+			// Orders
+			tableName = "orders";
+			insertQuery = "INSERT INTO tmp_" + tableName
+					+ " (surrogate_id, implementation_id, order_id, order_type_id, concept_id, orderer, encounter_id, instructions, date_activated, auto_expire_date, date_stopped, order_reason, order_reason_non_coded, creator, date_created, voided, voided_by, date_voided, void_reason, patient_id, accession_number, urgency, order_number, previous_order_id, order_action, comment_to_fulfiller, care_setting, scheduled_date, order_group_id, sort_weight, uuid) VALUES ()";
+			selectQuery = "SELECT 0,'" + implementationId
+					+ "', order_id, order_type_id, concept_id, orderer, encounter_id, instructions, date_activated, auto_expire_date, date_stopped, order_reason, order_reason_non_coded, creator, date_created, voided, voided_by, date_voided, void_reason, patient_id, accession_number, urgency, order_number, previous_order_id, order_action, comment_to_fulfiller, care_setting, scheduled_date, order_group_id, sort_weight, uuid FROM "
+					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
+			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
+			// Insert new records
+			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
+					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
+					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			// Update the existing records
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
+					+ " AS t SET a.order_type_id=t.order_type_id, a.concept_id=t.concept_id, a.orderer=t.orderer, a.encounter_id=t.encounter_id, a.instructions=t.instructions, a.date_activated=t.date_activated, a.auto_expire_date=t.auto_expire_date, a.date_stopped=t.date_stopped, a.order_reason=t.order_reason, a.order_reason_non_coded=t.order_reason_non_coded, a.creator=t.creator, a.date_created=t.date_created, a.voided=t.voided, a.voided_by=t.voided_by, a.date_voided=t.date_voided, a.void_reason=t.void_reason, a.patient_id=t.patient_id, a.accession_number=t.accession_number, a.urgency=t.urgency, a.order_number=t.order_number, a.previous_order_id=t.previous_order_id, a.order_action=t.order_action, a.comment_to_fulfiller=t.comment_to_fulfiller, a.care_setting=t.care_setting, a.scheduled_date=t.scheduled_date, a.order_group_id=t.order_group_id, a.sort_weight=t.sort_weight WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 

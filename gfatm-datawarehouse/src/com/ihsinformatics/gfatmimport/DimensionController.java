@@ -101,8 +101,8 @@ public class DimensionController {
 		try {
 			log.info("Starting deencounterizing process");
 			deencounterizeOpenMrs();
-			deencounterizeOpenMrsExtended();
 			deencounterizeGfatm();
+			// denormalizeOpenMrsExtended();
 			log.info("Deencounterizing process complete");
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -384,11 +384,11 @@ public class DimensionController {
 	/**
 	 * Transforms the common-lab module data into separate tables
 	 */
-	public void deencounterizeOpenMrsExtended() {
+	public void denormalizeOpenMrsExtended() {
 		// Create a temporary table to save questions for each encounter type
-		db.runCommand(CommandType.DROP, "drop table if exists tmp");
+		db.runCommand(CommandType.DROP, "drop table if exists commonlab_tmp");
 		db.runCommand(CommandType.CREATE,
-				"create table tmp select distinct encounter_type, concept_id, question from dim_obs");
+				"create table commonlab_tmp select distinct encounter_type, concept_id, question from dim_obs");
 		// Fetch encounter types and names
 		Object[][] testTypes = db.getTableData("commonlabtest_type", "distinct test_type_id, short_name", null);
 		if (testTypes == null) {
@@ -398,7 +398,7 @@ public class DimensionController {
 		for (Object[] testType : testTypes) {
 			StringBuilder query = new StringBuilder();
 			// Create a de-encounterized table
-			Object[][] data = db.getTableData("tmp", "short_name", "test_type_id=" + testType[0].toString());
+			Object[][] data = db.getTableData("commonlab_tmp", "short_name", "test_type_id=" + testType[0].toString());
 			ArrayList<String> elements = new ArrayList<String>();
 			for (int i = 0; i < data.length; i++) {
 				if (data[i][0] == null) {

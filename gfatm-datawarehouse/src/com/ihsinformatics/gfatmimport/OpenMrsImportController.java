@@ -28,6 +28,11 @@ import com.ihsinformatics.util.DateTimeUtil;
 public class OpenMrsImportController extends AbstractImportController {
 
 	private static final Logger log = Logger.getLogger(Class.class.getName());
+	private String insertQuery;
+	private String updateQuery;
+	private String selectQuery;
+	private String deleteQuery;
+	private String tableName;
 
 	public OpenMrsImportController(DatabaseUtil sourceDb, DatabaseUtil targetDb) {
 		this.sourceDb = sourceDb;
@@ -74,10 +79,12 @@ public class OpenMrsImportController extends AbstractImportController {
 			importEncounterData(sourceDb, implementationId);
 			log.info("Importing visit data...");
 			importVisitData(sourceDb, implementationId);
-			log.info("Importing order data...");
-			importOrderData(sourceDb, implementationId);
 			log.info("Importing forms data...");
 			importFormData(sourceDb, implementationId);
+			log.info("Importing order data...");
+			importOrderData(sourceDb, implementationId);
+			log.info("Importing drug data...");
+			importDrugData(sourceDb, implementationId);
 			log.info("Import complete");
 		} catch (Exception e) {
 			log.warning(e.getMessage());
@@ -100,7 +107,8 @@ public class OpenMrsImportController extends AbstractImportController {
 				"tmp_patient", "tmp_patient_identifier", "tmp_patient_program", "tmp_encounter_type", "tmp_form",
 				"tmp_encounter_role", "tmp_encounter", "tmp_encounter_provider", "tmp_obs", "tmp_orders",
 				"tmp_visit_type", "tmp_visit_attribute_type", "tmp_visit_attribute", "tmp_field", "tmp_field_answer",
-				"tmp_field_type", "tmp_form_field" };
+				"tmp_field_type", "tmp_form_field", "tmp_relationship_type", "tmp_relationship", "tmp_drug",
+				"tmp_drug_ingredient", "tmp_drug_order", "tmp_drug_orders_extn", "tmp_drug_reference_map" };
 		for (String table : tables) {
 			try {
 				targetDb.runCommandWithException(CommandType.TRUNCATE, "TRUNCATE TABLE " + table);
@@ -122,13 +130,9 @@ public class OpenMrsImportController extends AbstractImportController {
 	public void importPeopleData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 		String database = remoteDb.getDbName();
-		String insertQuery;
-		String updateQuery;
-		String selectQuery;
-		String tableName;
 		try {
+			// Person
 			tableName = "person";
-			// Insert into temp_person table...
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, person_id, gender, birthdate, birthdate_estimated, dead, death_date, cause_of_death, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId
@@ -136,19 +140,17 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND person_id = t.person_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.gender = t.gender, a.birthdate = t.birthdate, a.birthdate_estimated = t.birthdate_estimated, a.dead = t.dead, a.death_date = t.death_date, a.cause_of_death = t.cause_of_death, a.creator = t.creator, a.date_created = t.date_created, a.changed_by = t.changed_by, a.date_changed = t.date_changed, a.voided = t.voided, a.voided_by = t.voided_by, a.date_voided = t.date_voided, a.void_reason = t.void_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// Person Attribute Type
 			tableName = "person_attribute_type";
-			// Insert into temp_person_Attribute_type
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, person_attribute_type_id, name, description, format, foreign_key, searchable, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, edit_privilege, sort_weight, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId
@@ -156,7 +158,6 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into person_attribute_type
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
@@ -166,6 +167,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// Person Attribute
 			tableName = "person_attribute";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, person_attribute_id, person_id, value, person_attribute_type_id, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -183,6 +185,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// Person Address
 			tableName = "person_address";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, person_address_id, person_id, preferred, address1, address2, city_village, state_province, postal_code, country, latitude, longitude, start_date, end_date, creator, date_created, voided, voided_by, date_voided, void_reason, county_district, address3, address4, address5, address6, date_changed, changed_by, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -200,6 +203,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// Person Name
 			tableName = "person_name";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, person_name_id, preferred, person_id, prefix, given_name, middle_name, family_name_prefix, family_name, family_name2, family_name_suffix, degree, creator, date_created, voided, voided_by, date_voided, void_reason, changed_by, date_changed, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -214,6 +218,42 @@ public class OpenMrsImportController extends AbstractImportController {
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.preferred = t.preferred, a.person_id = t.person_id, a.prefix = t.prefix, a.given_name = t.given_name, a.middle_name = t.middle_name, a.family_name_prefix = t.family_name_prefix, a.family_name = t.family_name, a.family_name2 = t.family_name2, a.family_name_suffix = t.family_name_suffix, a.degree = t.degree, a.creator = t.creator, a.date_created = t.date_created, a.voided = t.voided, a.voided_by = t.voided_by, a.date_voided = t.date_voided, a.void_reason = t.void_reason, a.changed_by = t.changed_by, a.date_changed = t.date_changed WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
+			// Relationship Type
+			tableName = "relationship_type";
+			insertQuery = "INSERT INTO tmp_" + tableName
+					+ " (surrogate_id, implementation_id, relationship_type_id, a_is_to_b, b_is_to_a, preferred, weight, description, creator, date_created, retired, retired_by, date_retired, retire_reason, date_changed, changed_by, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId
+					+ "', relationship_type_id, a_is_to_b, b_is_to_a, preferred, weight, description, creator, date_created, retired, retired_by, date_retired, retire_reason, date_changed, changed_by, uuid FROM "
+					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
+			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
+					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
+					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
+					+ " AS t SET a.relationship_type_id = t.relationship_type_id, a.a_is_to_b = t.a_is_to_b, a.b_is_to_a = t.b_is_to_a, a.preferred = t.preferred, a.weight = t.weight, a.description = t.description, a.creator = t.creator, a.date_created = t.date_created, a.retired = t.retired, a.retired_by = t.retired_by, a.date_retired = t.date_retired, a.retire_reason = t.retire_reason, a.date_changed = t.date_changed, a.changed_by = t.changed_by WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
+			// Relationship
+			tableName = "relationship";
+			insertQuery = "INSERT INTO tmp_" + tableName
+					+ " (surrogate_id, implementation_id, relationship_id, person_a, relationship, person_b, start_date, end_date, creator, date_created, date_changed, changed_by, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId
+					+ "', relationship_id, person_a, relationship, person_b, start_date, end_date, creator, date_created, date_changed, changed_by, voided, voided_by, date_voided, void_reason, uuid FROM "
+					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
+			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
+			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
+					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
+					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
+					+ " AS t SET a.relationship_id = t.relationship_id, a.person_a = t.person_a, a.relationship = t.relationship, a.person_b = t.person_b, a.start_date = t.start_date, a.end_date = t.end_date, a.creator = t.creator, a.date_created = t.date_created, a.date_changed = t.date_changed, a.changed_by = t.changed_by, a.voided = t.voided, a.voided_by = t.voided_by, a.date_voided = t.date_voided, a.void_reason = t.void_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
@@ -233,12 +273,8 @@ public class OpenMrsImportController extends AbstractImportController {
 	public void importUserData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 		String database = remoteDb.getDbName();
-		String insertQuery;
-		String updateQuery;
-		String selectQuery;
-		String deleteQuery;
-		String tableName;
 		try {
+			// Role
 			tableName = "role";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, role, description, uuid) VALUES (?,?,?,?,?)";
@@ -255,6 +291,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// Role Role
 			tableName = "role_role";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, parent_role, child_role) VALUES (?,?,?,?)";
@@ -268,6 +305,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " AS t WHERE t.implementation_id = '" + implementationId + "'";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 
+			// Privilege
 			tableName = "privilege";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, privilege, description, uuid) VALUES (?,?,?,?,?)";
@@ -284,6 +322,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// Role Privilege
 			tableName = "role_privilege";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, role, privilege) VALUES (?,?,?,?)";
@@ -297,6 +336,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " AS t WHERE t.implementation_id = '" + implementationId + "'";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 
+			// Users
 			tableName = "users";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, user_id, system_id, username, password, salt, secret_question, secret_answer, creator, date_created, changed_by, date_changed, person_id, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -314,6 +354,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// User Property
 			tableName = "user_property";
 			insertQuery = "INSERT IGNORE INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, user_id, property, property_value) VALUES (?,?,?,?,?)";
@@ -327,6 +368,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " AS t WHERE t.implementation_id = '" + implementationId + "'";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 
+			// User Role
 			tableName = "user_role";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, user_id, role) VALUES (?,?,?,?)";
@@ -340,6 +382,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " AS t WHERE t.implementation_id = '" + implementationId + "'";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 
+			// Provider Attribute Type
 			tableName = "provider_attribute_type";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, provider_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -357,6 +400,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// Provider
 			tableName = "provider";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, provider_id, person_id, name, identifier, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -374,6 +418,7 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+			// Provider Attribute
 			tableName = "provider_attribute";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ " (surrogate_id, implementation_id, provider_attribute_id, provider_id, attribute_type_id, value_reference, uuid, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -408,12 +453,8 @@ public class OpenMrsImportController extends AbstractImportController {
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 
 		String database = remoteDb.getDbName();
-		String insertQuery;
-		String updateQuery;
-		String selectQuery;
-		String tableName;
-
 		try {
+			// Location Attribute Type
 			tableName = "location_attribute_type";
 			insertQuery = "INSERT INTO tmp_" + tableName
 					+ "(surrogate_id, implementation_id, location_attribute_type_id, name, description, datatype, datatype_config, preferred_handler, handler_config, min_occurs, max_occurs, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -440,12 +481,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".location into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the actual database from temp table
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a. location_id=t. location_id,a. name=t. name,a. description=t. description,a. address1=t. address1,a. address2=t. address2,a. city_village=t. city_village,a. state_province=t. state_province,a. postal_code=t. postal_code,a. country=t. country,a. latitude=t. latitude,a. longitude=t. longitude,a. creator=t. creator,a. date_created=t. date_created,a. county_district=t. county_district,a. address3=t. address3,a. address4=t. address4,a. address5=t. address5,a. address6=t. address6,a. retired=t. retired,a. retired_by=t. retired_by,a. date_retired=t. date_retired,a. retire_reason=t. retire_reason,a. parent_location=t. parent_location,a. uuid=t. uuid,a. changed_by=t. changed_by,a. date_changed=t. date_changed WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -460,7 +499,6 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".location_attribute into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
@@ -479,7 +517,6 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".location_tag into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
@@ -499,7 +536,6 @@ public class OpenMrsImportController extends AbstractImportController {
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
 			// Flush the existing table first
 			targetDb.truncateTable(tableName);
-			// Insert into warehouse from tmp_table
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id)";
@@ -521,10 +557,6 @@ public class OpenMrsImportController extends AbstractImportController {
 	public void importConceptData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 		String database = remoteDb.getDbName();
-		String insertQuery;
-		String updateQuery;
-		String selectQuery;
-		String tableName;
 		try {
 			// Concept Class
 			tableName = "concept_class";
@@ -539,7 +571,6 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the warehouse database from tmp table...
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.concept_class_id=t.concept_class_id,a.name=t.name,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -554,12 +585,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the warehouse database from tmp table...
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.concept_set_id=t.concept_set_id,a.concept_id=t.concept_id,a.concept_set=t.concept_set,a.sort_weight=t.sort_weight,a.creator=t.creator,a.date_created=t.date_created WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -574,12 +603,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the warehouse database from tmp table...
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.concept_datatype_id=t.concept_datatype_id,a.name=t.name,a.hl7_abbreviation=t.hl7_abbreviation,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -594,12 +621,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".concept_map_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the warehouse database from tmp table...
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.concept_map_type_id=t.concept_map_type_id,a.name=t.name,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.is_hidden=t.is_hidden,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -614,12 +639,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".concept into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the warehouse database from tmp table...
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.concept_id=t.concept_id,a.retired=t.retired,a.short_name=t.short_name,a.description=t.description,a.form_text=t.form_text,a.datatype_id=t.datatype_id,a.class_id=t.class_id,a.is_set=t.is_set,a.creator=t.creator,a.date_created=t.date_created,a.version=t.version,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -634,12 +657,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".concept_name into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the warehouse database from tmp table...
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.concept_id=t.concept_id,a.name=t.name,a.locale=t.locale,a.creator=t.creator,a.date_created=t.date_created,a.concept_name_id=t.concept_name_id,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.concept_name_type=t.concept_name_type,a.locale_preferred=t.locale_preferred WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -654,12 +675,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".concept_description into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the warehouse database from tmp table...
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.concept_description_id=t.concept_description_id,a.concept_id=t.concept_id,a.description=t.description,a.locale=t.locale,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -674,12 +693,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".concept_answer into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the warehouse database from tmp table...
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.concept_answer_id=t.concept_answer_id,a.concept_id=t.concept_id,a.answer_concept=t.answer_concept,a.answer_drug=t.answer_drug,a.creator=t.creator,a.date_created=t.date_created,a.sort_weight=t.sort_weight WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -695,12 +712,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ " AS t WHERE t.hi_absolute IS NOT NULL OR t.hi_critical IS NOT NULL OR t.hi_normal IS NOT NULL OR t.low_absolute IS NOT NULL OR t.low_critical IS NOT NULL OR t.low_normal IS NOT NULL OR t.units IS NOT NULL";
 			log.info("Inserting data from " + database + ".concept_numeric into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert into warehouse from tmp_table...
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE concept_id NOT IN (SELECT concept_id FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the warehouse database from tmp table...
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.concept_id=t.concept_id,a.hi_absolute=t.hi_absolute,a.hi_critical=t.hi_critical,a.hi_normal=t.hi_normal,a.low_absolute=t.low_absolute,a.low_critical=t.low_critical,a.low_normal=t.low_normal,a.units=t.units,a.precise=t.precise,a.display_precision=t.display_precision WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.concept_id = t.concept_id";
@@ -723,11 +738,6 @@ public class OpenMrsImportController extends AbstractImportController {
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 
 		String database = remoteDb.getDbName();
-		String insertQuery;
-		String updateQuery;
-		String selectQuery;
-		String tableName;
-
 		try {
 			// Patient Identifier Type
 			tableName = "patient_identifier_type";
@@ -738,12 +748,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".patient_identifier_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.patient_identifier_type_id=t.patient_identifier_type_id,a.name=t.name,a.description=t.description,a.format=t.format,a.check_digit=t.check_digit,a.creator=t.creator,a.date_created=t.date_created,a.required=t.required,a.format_description=t.format_description,a.validator=t.validator,a.location_behavior=t.location_behavior,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason,a.uniqueness_behavior=t.uniqueness_behavior WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -758,12 +766,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".patient into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id and patient_id = t.patient_id)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.patient_id=t.patient_id";
@@ -778,12 +784,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".patient_identifier into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.patient_identifier_id=t.patient_identifier_id,a.patient_id=t.patient_id,a.identifier=t.identifier,a.identifier_type=t.identifier_type,a.preferred=t.preferred,a.location_id=t.location_id,a.creator=t.creator,a.date_created=t.date_created,a.date_changed=t.date_changed,a.changed_by=t.changed_by,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -798,12 +802,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".patient_program into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.patient_program_id=t.patient_program_id,a.patient_id=t.patient_id,a.program_id=t.program_id,a.date_enrolled=t.date_enrolled,a.date_completed=t.date_completed,a.location_id=t.location_id,a.outcome_concept_id=t.outcome_concept_id,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -825,10 +827,6 @@ public class OpenMrsImportController extends AbstractImportController {
 	public void importEncounterData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 		String database = remoteDb.getDbName();
-		String insertQuery;
-		String updateQuery;
-		String selectQuery;
-		String tableName;
 		try {
 			// Encounter Type
 			tableName = "encounter_type";
@@ -839,12 +837,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.encounter_type_id=t.encounter_type_id,a.name=t.name,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason,a.edit_privilege=t.edit_privilege,a.view_privilege=t.view_privilege WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -859,12 +855,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".encounter_role into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.encounter_role_id=t.encounter_role_id,a.name=t.name,a.description=t.description,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -898,12 +892,10 @@ public class OpenMrsImportController extends AbstractImportController {
 						+ "' OR DATE(t.date_changed) = '" + date + "'";
 				remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
 			}
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.encounter_id=t.encounter_id,a.encounter_type=t.encounter_type,a.patient_id=t.patient_id,a.location_id=t.location_id,a.form_id=t.form_id,a.encounter_datetime=t.encounter_datetime,a.creator=t.creator,a.date_created=t.date_created,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.visit_id=t.visit_id WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -927,12 +919,10 @@ public class OpenMrsImportController extends AbstractImportController {
 			}
 			log.info("Inserting data from " + database + ".encounter_provider into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.encounter_provider_id=t.encounter_provider_id,a.encounter_id=t.encounter_id,a.provider_id=t.provider_id,a.encounter_role_id=t.encounter_role_id,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.voided=t.voided,a.date_voided=t.date_voided,a.voided_by=t.voided_by,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -967,24 +957,17 @@ public class OpenMrsImportController extends AbstractImportController {
 						+ " (surrogate_id, implementation_id, obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 				selectQuery = "SELECT 0,'" + implementationId
 						+ "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM "
-						+ database + "." + tableName + " AS t WHERE DATE(t.date_voided) = '" + date + "'";
-				remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-				/*
-				 * Fix against Bug:
-				 * http://project1.irdresearch.org/redmine/issues/13857
-				 */
-				selectQuery = "SELECT 0,'" + implementationId
-						+ "', obs_id, person_id, concept_id, encounter_id, order_id, obs_datetime, location_id, obs_group_id, accession_number, value_group_id, value_coded, value_coded_name_id, value_drug, value_datetime, value_numeric, value_modifier, value_text, value_complex, comments, creator, date_created, voided, voided_by, date_voided, void_reason, uuid, previous_version FROM "
-						+ database + "." + tableName + " AS t WHERE previous_version IN (SELECT obs_id FROM " + database
-						+ "." + tableName + " WHERE DATE(t.date_voided) = '" + date + "')";
+						+ database + "." + tableName + " AS t WHERE DATE(t.date_voided) = '" + date
+						// Fix against Bug:
+						// http://project1.irdresearch.org/redmine/issues/13857
+						+ "' OR previous_version IN (SELECT obs_id FROM " + database + "." + tableName
+						+ " AS o WHERE DATE(o.date_voided) = '" + date + "')";
 				remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
 			}
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.obs_id=t.obs_id,a.person_id=t.person_id,a.concept_id=t.concept_id,a.encounter_id=t.encounter_id,a.order_id=t.order_id,a.obs_datetime=t.obs_datetime,a.location_id=t.location_id,a.obs_group_id=t.obs_group_id,a.accession_number=t.accession_number,a.value_group_id=t.value_group_id,a.value_coded=t.value_coded,a.value_coded_name_id=t.value_coded_name_id,a.value_drug=t.value_drug,a.value_datetime=t.value_datetime,a.value_numeric=t.value_numeric,a.value_modifier=t.value_modifier,a.value_text =t.value_text ,a.value_complex=t.value_complex,a.comments=t.comments,a.creator=t.creator,a.date_created=t.date_created,a.voided=t.voided,a.voided_by=t.voided_by,a.date_voided=t.date_voided,a.void_reason=t.void_reason,a.previous_version=t.previous_version WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -1007,10 +990,6 @@ public class OpenMrsImportController extends AbstractImportController {
 	public void importVisitData(DatabaseUtil remoteDb, int implementationId)
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 		String database = remoteDb.getDbName();
-		String insertQuery;
-		String updateQuery;
-		String selectQuery;
-		String tableName;
 		try {
 			// Visit Type
 			tableName = "visit_type";
@@ -1021,12 +1000,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.visit_type_id=t.visit_type_id,a.name =t.name ,a.description =t.description ,a.creator=t.creator,a.date_created=t.date_created,a.changed_by =t.changed_by ,a.date_changed =t.date_changed ,a.retired =t.retired ,a.retired_by =t.retired_by ,a.date_retired =t.date_retired ,a.retire_reason=t.retire_reason,a.uuid =t.uuid  WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -1041,12 +1018,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.visit_attribute_type_id=t.visit_attribute_type_id,a.name=t.name,a.description =t.description ,a.datatype=t.datatype,a.datatype_config =t.datatype_config ,a.preferred_handler =t.preferred_handler ,a.handler_config =t.handler_config ,a.min_occurs =t.min_occurs ,a.max_occurs=t.max_occurs,a.creator =t.creator ,a.date_created =t.date_created ,a.changed_by =t.changed_by ,a.date_changed =t.date_changed ,a.retired =t.retired ,a.retired_by=t.retired_by,a.date_retired =t.date_retired ,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -1061,12 +1036,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.visit_attribute_id =t.visit_attribute_id ,a.visit_id=t.visit_id,a.attribute_type_id=t.attribute_type_id,a.value_reference=t.value_reference,a.uuid =t.uuid ,a.creator =t.creator ,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed =t.date_changed ,a.voided=t.voided,a.voided_by =t.voided_by ,a.date_voided =t.date_voided ,a.void_reason=t.void_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -1090,11 +1063,6 @@ public class OpenMrsImportController extends AbstractImportController {
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 
 		String database = remoteDb.getDbName();
-		String insertQuery;
-		String updateQuery;
-		String selectQuery;
-		String tableName;
-
 		try {
 			// Field
 			tableName = "field";
@@ -1107,12 +1075,10 @@ public class OpenMrsImportController extends AbstractImportController {
 			// "t.date_changed");
 			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.field_id=t.field_id,a.name=t.name,a.description=t.description,a.field_type=t.field_type,a.concept_id=t.concept_id,a.table_name=t.table_name,a.attribute_name=t.attribute_name,a.default_value=t.default_value,a.select_multiple=t.select_multiple,a.creator=t.creator,a.date_created=t.date_created,a.changed_by=t.changed_by,a.date_changed=t.date_changed,a.retired=t.retired,a.retired_by=t.retired_by,a.date_retired=t.date_retired,a.retire_reason=t.retire_reason WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -1126,12 +1092,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.field_id =t.field_id ,a.answer_id =t.answer_id ,a.creator=t.creator,a.date_created=t.date_created WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -1146,12 +1110,10 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.form_field_id =t.form_field_id ,a.form_id =t.form_id ,a.field_id =t.field_id ,a.field_number =t.field_number ,a.field_part =t.field_part ,a.page_number=t.page_number,a.parent_form_field =t.parent_form_field ,a.min_occurs =t.min_occurs ,a.max_occurs =t.max_occurs ,a.required=t.required,a.changed_by =t.changed_by ,a.date_changed=t.date_changed,a.creator =t.creator ,a.date_created =t.date_created ,a.sort_weight =t.sort_weight WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
@@ -1166,17 +1128,14 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ tableName + " AS t " + filter("t.date_created", null);
 			log.info("Inserting data from " + database + ".encounter_type into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.field_type_id =t.field_type_id ,a.name =t.name ,a.description =t.description ,a.is_set =t.is_set ,a.creator =t.creator ,a.date_created =t.date_created WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
-
 		} catch (SQLException e) {
 			log.warning(e.getMessage());
 		}
@@ -1195,11 +1154,6 @@ public class OpenMrsImportController extends AbstractImportController {
 			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 
 		String database = remoteDb.getDbName();
-		String insertQuery;
-		String updateQuery;
-		String selectQuery;
-		String tableName;
-
 		try {
 			// Orders
 			tableName = "orders";
@@ -1210,17 +1164,100 @@ public class OpenMrsImportController extends AbstractImportController {
 					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
-			// Insert new records
 			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
 					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
 					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
-			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
 					+ " AS t SET a.order_type_id=t.order_type_id, a.concept_id=t.concept_id, a.orderer=t.orderer, a.encounter_id=t.encounter_id, a.instructions=t.instructions, a.date_activated=t.date_activated, a.auto_expire_date=t.auto_expire_date, a.date_stopped=t.date_stopped, a.order_reason=t.order_reason, a.order_reason_non_coded=t.order_reason_non_coded, a.creator=t.creator, a.date_created=t.date_created, a.voided=t.voided, a.voided_by=t.voided_by, a.date_voided=t.date_voided, a.void_reason=t.void_reason, a.patient_id=t.patient_id, a.accession_number=t.accession_number, a.urgency=t.urgency, a.order_number=t.order_number, a.previous_order_id=t.previous_order_id, a.order_action=t.order_action, a.comment_to_fulfiller=t.comment_to_fulfiller, a.care_setting=t.care_setting, a.scheduled_date=t.scheduled_date, a.order_group_id=t.order_group_id, a.sort_weight=t.sort_weight WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 
+		} catch (SQLException e) {
+			log.warning(e.getMessage());
+		}
+	}
+
+	/**
+	 * Load data from drug-related tables into data warehouse
+	 * 
+	 * @param implementationId
+	 * @param database
+	 * @throws ClassNotFoundException
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
+	 */
+	public void importDrugData(DatabaseUtil remoteDb, int implementationId)
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+
+		String database = remoteDb.getDbName();
+		try {
+			// Drug
+			tableName = "drug";
+			insertQuery = "INSERT INTO tmp_" + tableName
+					+ " (surrogate_id, implementation_id, drug_id, concept_id, name, combination, dosage_form, maximum_daily_dose, minimum_daily_dose, route, creator, date_created, retired, changed_by, date_changed, retired_by, date_retired, retire_reason, strength, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId
+					+ "', drug_id, concept_id, name, combination, dosage_form, maximum_daily_dose, minimum_daily_dose, route, creator, date_created, retired, changed_by, date_changed, retired_by, date_retired, retire_reason, strength, uuid FROM "
+					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
+			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
+			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
+					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
+					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
+					+ " AS t SET a.concept_id = t.concept_id, a.name = t.name, a.combination = t.combination, a.dosage_form = t.dosage_form, a.maximum_daily_dose = t.maximum_daily_dose, a.minimum_daily_dose = t.minimum_daily_dose, a.route = t.route, a.creator = t.creator, a.date_created = t.date_created, a.retired = t.retired, a.changed_by = t.changed_by, a.date_changed = t.date_changed, a.retired_by = t.retired_by, a.date_retired = t.date_retired, a.retire_reason = t.retire_reason, a.strength = t.strength WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
+
+			// Drug Ingredient
+			tableName = "drug_ingredient";
+			insertQuery = "INSERT INTO tmp_" + tableName
+					+ " (surrogate_id, implementation_id, drug_id, ingredient_id, strength, units, uuid) VALUES (?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId + "', drug_id, ingredient_id, strength, units, uuid FROM "
+					+ database + "." + tableName + " AS t ";
+			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
+			deleteQuery = "DELETE FROM " + tableName + " WHERE implementation_id = '" + implementationId + "'";
+			targetDb.runCommand(CommandType.DELETE, deleteQuery);
+			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT * FROM tmp_" + tableName
+					+ " AS t WHERE t.implementation_id = '" + implementationId + "'";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+
+			// Drug Order
+			tableName = "drug_order";
+			insertQuery = "INSERT INTO tmp_" + tableName
+					+ " (surrogate_id, implementation_id, order_id, drug_inventory_id, dose, as_needed, dosing_type, quantity, as_needed_condition, num_refills, dosing_instructions, duration, duration_units, quantity_units, route, dose_units, frequency, brand_name, dispense_as_written, drug_non_coded) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId
+					+ "', order_id, drug_inventory_id, dose, as_needed, dosing_type, quantity, as_needed_condition, num_refills, dosing_instructions, duration, duration_units, quantity_units, route, dose_units, frequency, brand_name, dispense_as_written, drug_non_coded FROM "
+					+ database + "." + tableName + " AS t ";
+			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
+			deleteQuery = "DELETE FROM " + tableName + " WHERE implementation_id = '" + implementationId + "'";
+			targetDb.runCommand(CommandType.DELETE, deleteQuery);
+			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT * FROM tmp_" + tableName
+					+ " AS t WHERE t.implementation_id = '" + implementationId + "'";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+
+			// TODO: Drug Order Extension
+
+			// Drug Reference Map
+			tableName = "drug_reference_map";
+			insertQuery = "INSERT INTO tmp_" + tableName
+					+ " (surrogate_id, implementation_id, drug_reference_map_id, drug_id, term_id, concept_map_type, creator, date_created, retired, retired_by, date_retired, retire_reason, changed_by, date_changed, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			selectQuery = "SELECT 0,'" + implementationId
+					+ "', drug_reference_map_id, drug_id, term_id, concept_map_type, creator, date_created, retired, retired_by, date_retired, retire_reason, changed_by, date_changed, uuid FROM "
+					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
+			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
+			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
+			insertQuery = "INSERT IGNORE INTO " + tableName + " SELECT DISTINCT * FROM tmp_" + tableName
+					+ " AS t WHERE NOT EXISTS (SELECT * FROM " + tableName
+					+ " WHERE implementation_id = t.implementation_id AND uuid = t.uuid)";
+			targetDb.runCommand(CommandType.INSERT, insertQuery);
+			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
+					+ " AS t SET a.concept_map_type = t.concept_map_type, a.creator = t.creator, a.date_created = t.date_created, a.retired = t.retired, a.retired_by = t.retired_by, a.date_retired = t.date_retired, a.retire_reason = t.retire_reason, a.changed_by = t.changed_by, a.date_changed = t.date_changed WHERE a.implementation_id = t.implementation_id = '"
+					+ implementationId + "' AND a.uuid = t.uuid";
+			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 		} catch (SQLException e) {
 			log.warning(e.getMessage());
 		}

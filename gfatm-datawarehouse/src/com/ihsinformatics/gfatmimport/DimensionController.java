@@ -328,7 +328,8 @@ public class DimensionController {
 		db.runCommand(CommandType.CREATE,
 				"create table tmp select distinct encounter_type, concept_id, question from dim_obs");
 		// Fetch encounter types and names
-		Object[][] encounterTypes = db.getTableData("dim_encounter", "distinct encounter_type, encounter_name", null);
+		Object[][] encounterTypes = db.getTableData("dim_encounter", "distinct encounter_type, encounter_name",
+				"where encounter_type=162");
 		if (encounterTypes == null) {
 			log.severe("Encounter types could not be fetched");
 			return;

@@ -32,6 +32,9 @@ drop table temp_voided;
 delete from dim_obs 
 where  obs_id in 
 	(select previous_version from obs where previous_version is not null);
+delete from dim_obs 
+where  obs_id in 
+	(select obs_id from obs where voided =1);
 
 create table tmp_group_obs 
 select implementation_id, encounter_type, obs_group_id, question, 
@@ -55,6 +58,7 @@ where e.voided = 0 and  (e.date_changed between date_from and date_to);
 update dim_encounter as de, tmp_dim_encounter as t 
 set de.patient_id = t.patient_id , de.location_id=t.location_id,de.provider=t.provider,de.date_entered=t.date_entered
 where de.implementation_id = t.implementation_id and de.encounter_id=t.encounter_id and de.encounter_type=t.encounter_type;
+
 
 END$$
 DELIMITER ;

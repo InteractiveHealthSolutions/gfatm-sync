@@ -74,8 +74,8 @@ public class OpenMrsExtendedImportController extends AbstractImportController {
 	 * @param implementationId
 	 */
 	private void clearTempTables(int implementationId) {
-		String[] tables = {
-				"tmp_commonlabtest_attribute, tmp_commonlabtest_attribute_type, tmp_commonlabtest_sample, tmp_commonlabtest_test, tmp_commonlabtest_type" };
+		String[] tables = { "tmp_commonlabtest_attribute", "tmp_commonlabtest_attribute_type",
+				"tmp_commonlabtest_sample", "tmp_commonlabtest_test", "tmp_commonlabtest_type" };
 		for (String table : tables) {
 			try {
 				targetDb.runCommandWithException(CommandType.TRUNCATE, "TRUNCATE TABLE " + table);
@@ -165,9 +165,9 @@ public class OpenMrsExtendedImportController extends AbstractImportController {
 			tableName = "commonlabtest_sample";
 			// Insert into tmp_commonlabtest_sample table...
 			insertQuery = "INSERT INTO tmp_" + tableName
-					+ " (surrogate_id, implementation_id, test_sample_id, test_order_id, specimen_type, specimen_site, is_expirable, expiry_datetime, lab_sample_identifier, collector, status, comments, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, collection_date, processed_date, quantity, units, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+					+ " (surrogate_id, implementation_id, test_sample_id, test_order_id, specimen_type, specimen_site, is_expirable, expiry_date, lab_sample_identifier, collector, status, comments, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, collection_date, processed_date, quantity, units, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId
-					+ "', test_sample_id, test_order_id, specimen_type, specimen_site, is_expirable, expiry_datetime, lab_sample_identifier, collector, status, comments, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, collection_date, processed_date, quantity, units, uuid FROM "
+					+ "', test_sample_id, test_order_id, specimen_type, specimen_site, is_expirable, expiry_date, lab_sample_identifier, collector, status, comments, creator, date_created, changed_by, date_changed, voided, voided_by, date_voided, void_reason, collection_date, processed_date, quantity, units, uuid FROM "
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
@@ -178,7 +178,7 @@ public class OpenMrsExtendedImportController extends AbstractImportController {
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
-					+ " AS t SET a.specimen_type = t.specimen_type, a.specimen_site = t.specimen_site, a.is_expirable = t.is_expirable, a.expiry_datetime = t.expiry_datetime, a.lab_sample_identifier = t.lab_sample_identifier, a.collector = t.collector, a.status = t.status, a.comments = t.comments, a.creator = t.creator, a.date_created = t.date_created, a.changed_by = t.changed_by, a.date_changed = t.date_changed, a.voided = t.voided, a.voided_by = t.voided_by, a.date_voided = t.date_voided, a.void_reason = t.void_reason, a.collection_date = t.collection_date, a.processed_date = t.processed_date, a.quantity = t.quantity, a.units = t.units WHERE a.implementation_id = t.implementation_id = '"
+					+ " AS t SET a.specimen_type = t.specimen_type, a.specimen_site = t.specimen_site, a.is_expirable = t.is_expirable, a.expiry_date = t.expiry_date, a.lab_sample_identifier = t.lab_sample_identifier, a.collector = t.collector, a.status = t.status, a.comments = t.comments, a.creator = t.creator, a.date_created = t.date_created, a.changed_by = t.changed_by, a.date_changed = t.date_changed, a.voided = t.voided, a.voided_by = t.voided_by, a.date_voided = t.date_voided, a.void_reason = t.void_reason, a.collection_date = t.collection_date, a.processed_date = t.processed_date, a.quantity = t.quantity, a.units = t.units WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 

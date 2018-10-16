@@ -102,7 +102,7 @@ public class DimensionController {
 			log.info("Starting deencounterizing process");
 			deencounterizeOpenMrs();
 			deencounterizeGfatm();
-			// denormalizeOpenMrsExtended();
+			denormalizeOpenMrsExtended();
 			log.info("Deencounterizing process complete");
 		} catch (Exception e) {
 			e.printStackTrace();

@@ -58,45 +58,56 @@ public class DimensionController {
 			log.info("Creating time dimension");
 			timeDimension();
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 		try {
 			log.info("Creating concept dimension");
 			conceptDimension(from, to, implementationId);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 		try {
 			log.info("Creating location dimension");
 			locationDimension(from, to, implementationId);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 		try {
 			log.info("Creating user dimension");
 			userDimension(from, to, implementationId);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 		try {
 			log.info("Creating patient dimension");
-			System.out.println(from);
-			System.out.println(to);
+			System.out.println(from + " to " + to);
 			patientDimension(from, to, implementationId);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 		try {
 			log.info("Creating encounter and observation dimensions");
 			encounterAndObsDimension(from, to, implementationId);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 		try {
 			log.info("Creating user form and result dimensions");
 			userFormAndResultDimension(from, to, implementationId);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
+		}
+		try {
+			log.info("Creating user form and result dimensions");
+			userFormAndResultDimension(from, to, implementationId);
+		} catch (Exception e) {
+			log.warning(e.getMessage());
+		}
+		try {
+			log.info("Creating lab result dimensions");
+			commonLabResultDimension(from, to, implementationId);
+		} catch (Exception e) {
+			log.warning(e.getMessage());
 		}
 		try {
 			log.info("Starting deencounterizing process");
@@ -105,7 +116,7 @@ public class DimensionController {
 			denormalizeOpenMrsExtended();
 			log.info("Deencounterizing process complete");
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.warning(e.getMessage());
 		}
 	}
 
@@ -258,6 +269,25 @@ public class DimensionController {
 		log.info("User Form transformation complete.");
 	}
 
+	/**
+	 * Fill in common lab results in respective dimensions
+	 * 
+	 * @throws InstantiationException
+	 * @throws IllegalAccessException
+	 * @throws ClassNotFoundException
+	 * @throws SQLException
+	 */
+	public void commonLabResultDimension(Date from, Date to, int implementationId)
+			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
+		log.info("Transforming common lab module attributes.");
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put("impl_id", implementationId);
+		params.put("date_from", from);
+		params.put("date_to", to);
+		db.runStoredProcedure("lab_test_dimension", params);
+		log.info("Common lab module transformation complete.");
+	}
+
 	public void deencounterizeGfatm() {
 		// Create a temporary table to save questions for each user form type
 		db.runCommand(CommandType.DROP, "drop table if exists tmp");
@@ -345,6 +375,9 @@ public class DimensionController {
 				}
 				elements.add(data[i][0].toString());
 			}
+			if (elements.isEmpty()) {
+				continue;
+			}
 			StringBuilder groupConcat = new StringBuilder();
 			for (Object element : elements) {
 				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_").toLowerCase();
@@ -389,8 +422,8 @@ public class DimensionController {
 		// Create a temporary table to save questions for each encounter type
 		db.runCommand(CommandType.DROP, "drop table if exists commonlab_tmp");
 		db.runCommand(CommandType.CREATE,
-				"create table commonlab_tmp select distinct encounter_type, concept_id, question from dim_obs");
-		// Fetch encounter types and names
+				"create table commonlab_tmp select distinct test_type_id, attribute_type_id, attribute_type_name from dim_lab_test_result");
+		// Fetch types and names
 		Object[][] testTypes = db.getTableData("commonlabtest_type", "distinct test_type_id, short_name", null);
 		if (testTypes == null) {
 			log.severe("Lab test types could not be fetched");
@@ -399,7 +432,8 @@ public class DimensionController {
 		for (Object[] testType : testTypes) {
 			StringBuilder query = new StringBuilder();
 			// Create a de-encounterized table
-			Object[][] data = db.getTableData("commonlab_tmp", "short_name", "test_type_id=" + testType[0].toString());
+			Object[][] data = db.getTableData("commonlab_tmp", "attribute_type_name",
+					"test_type_id=" + testType[0].toString());
 			ArrayList<String> elements = new ArrayList<String>();
 			for (int i = 0; i < data.length; i++) {
 				if (data[i][0] == null) {
@@ -407,37 +441,38 @@ public class DimensionController {
 				}
 				elements.add(data[i][0].toString());
 			}
+			if (elements.isEmpty()) {
+				continue;
+			}
 			StringBuilder groupConcat = new StringBuilder();
 			for (Object element : elements) {
 				String str = element.toString().replaceAll("[^A-Za-z0-9]", "_").toLowerCase();
-				groupConcat.append("group_concat(if(o.question = '" + element + "', o.answer, NULL)) AS " + str + ", ");
+				groupConcat.append("group_concat(if(r.attribute_type_name = '" + element
+						+ "', r.value_reference, NULL)) AS " + str + ", ");
 			}
-			String encounterName = testType[1].toString().toLowerCase().replace(" ", "_").replace("-", "_");
-			query.append("create table enc_" + encounterName + " engine=InnoDB ");
+			String labTestType = testType[1].toString().toLowerCase().replace(" ", "_").replace("-", "_");
+			query.append("create table lab_" + labTestType + " engine=InnoDB ");
 			query.append(
-					"select e.surrogate_id, e.implementation_id, e.encounter_id,  e.provider, e.location_id, l.location_name, e.patient_id, e.date_entered, ");
+					"select t.surrogate_id, t.implementation_id, t.test_order_id, t.orderer, t.patient_id, t.encounter_id, t.lab_reference_number, t.order_date, ");
 			query.append(groupConcat.toString());
-			query.append("'' as BLANK from dim_encounter as e ");
-			query.append("inner join dim_obs as o on o.encounter_id = e.encounter_id and o.voided = 0 ");
-			query.append("inner join dim_location as l on l.location_id = e.location_id ");
-			query.append("where e.encounter_type = '" + testType[0].toString() + "' ");
-			// Filter out all child observations (e.g. multi-select)
-			query.append("and o.obs_group_id is null ");
+			query.append("'' as BLANK from dim_lab_test as t ");
+			query.append("inner join dim_lab_test_result as r on r.test_order_id = t.test_order_id ");
+			query.append("where t.test_type_id = '" + testType[0].toString() + "' ");
 			query.append(
-					"group by e.surrogate_id, e.implementation_id, e.encounter_id, e.patient_id, e.provider, e.location_id, e.date_entered");
+					"group by t.surrogate_id, t.implementation_id, t.test_order_id, t.orderer, t.patient_id, t.encounter_id, t.lab_reference_number, t.order_date");
 			// Drop previous table
-			db.runCommand(CommandType.DROP, "drop table if exists enc_" + encounterName);
+			db.runCommand(CommandType.DROP, "drop table if exists lab_" + labTestType);
 			log.info("Generating table for " + testType[1].toString());
 			try {
 				log.info("Executing: " + query.toString());
 				// Insert new data
 				Object result = db.runCommand(CommandType.CREATE, query.toString());
 				if (result == null) {
-					log.warning("No data imported for Encounter " + testType[1].toString());
+					log.warning("No data imported for Lab Test " + testType[1].toString());
 				}
 				// Creating Primary key
-				db.runCommand(CommandType.ALTER, "alter table enc_" + encounterName
-						+ " add primary key surrogate_id (surrogate_id), add key patient_id (patient_id), add key encounter_id (encounter_id)");
+				db.runCommand(CommandType.ALTER, "alter table lab_" + labTestType
+						+ " add primary key surrogate_id (surrogate_id), add key patient_id (patient_id), add key test_order_id (test_order_id)");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

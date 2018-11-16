@@ -132,6 +132,8 @@ public class GfatmImportMain implements ActionListener {
 			"Locations and Attributes");
 	private final JCheckBox conceptsCheckBox = new JCheckBox(
 			"Concepts and Form Types");
+	private final JCheckBox labMetadataCheckBox = new JCheckBox(
+			"Lab Metadata");
 	private final JCheckBox otherMetadataCheckBox = new JCheckBox(
 			"Other Metadata");
 
@@ -191,7 +193,7 @@ public class GfatmImportMain implements ActionListener {
 			}
 			try {
 				styledDoc.insertString(styledDoc.getLength(),
-						DateTimeUtil.getSqlDateTime(new Date()) + ":\t"
+						DateTimeUtil.toSqlDateTimeString(new Date()) + ":\t"
 								+ message + "\n", attrs);
 			} catch (BadLocationException e) {
 			}
@@ -227,7 +229,7 @@ public class GfatmImportMain implements ActionListener {
 						.getImage(
 								GfatmImportMain.class
 										.getResource("/com/sun/java/swing/plaf/windows/icons/Computer.gif")));
-		mainFrame.setBounds(100, 100, 635, 425);
+		mainFrame.setBounds(100, 100, 700, 425);
 		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		mainFrame.getContentPane().add(tabbedPane, BorderLayout.NORTH);
 		tabbedPane.addTab("Source Connection", null, serverPanel, null);
@@ -309,11 +311,13 @@ public class GfatmImportMain implements ActionListener {
 		usersCheckBox.setSelected(true);
 		conceptsCheckBox.setSelected(true);
 		locationsCheckBox.setSelected(true);
+		labMetadataCheckBox.setSelected(true);
 		otherMetadataCheckBox.setSelected(true);
 		optionsPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
 		optionsPanel.add(usersCheckBox);
 		optionsPanel.add(conceptsCheckBox);
 		optionsPanel.add(locationsCheckBox);
+		optionsPanel.add(labMetadataCheckBox);
 		optionsPanel.add(otherMetadataCheckBox);
 
 		Properties p = new Properties();
@@ -419,9 +423,8 @@ public class GfatmImportMain implements ActionListener {
 		mode = importStatus;
 		Component[] clientComponents = clientPanel.getComponents();
 		Component[] serverComponents = serverPanel.getComponents();
-		Component[] otherComponents = { dataFromComboBox, importOptionComboBox,
-				usersCheckBox, locationsCheckBox, conceptsCheckBox,
-				otherMetadataCheckBox };
+		Component[] otherComponents = { dataFromComboBox, importOptionComboBox, usersCheckBox, locationsCheckBox,
+				conceptsCheckBox, labMetadataCheckBox, otherMetadataCheckBox };
 		Component[] all = ArrayUtils.addAll(clientComponents, serverComponents);
 		all = ArrayUtils.addAll(all, otherComponents);
 		switch (importStatus) {
@@ -466,6 +469,7 @@ public class GfatmImportMain implements ActionListener {
 		boolean usersChecked = usersCheckBox.isSelected();
 		boolean locationsChecked = locationsCheckBox.isSelected();
 		boolean conceptsChecked = conceptsCheckBox.isSelected();
+		boolean labMetadataChecked = labMetadataCheckBox.isSelected();
 		boolean otherMetadataChecked = otherMetadataCheckBox.isSelected();
 		// Check mandatory fields
 		if (serverUrl.equals("")) {
@@ -486,7 +490,7 @@ public class GfatmImportMain implements ActionListener {
 		if (localPassword.equals("")) {
 			error.append("Local Password cannot be empty.\n");
 		}
-		if ((usersChecked | locationsChecked | conceptsChecked | otherMetadataChecked) == false) {
+		if ((usersChecked | locationsChecked | conceptsChecked | labMetadataChecked | otherMetadataChecked) == false) {
 			error.append("At least one option must be checked to import.\n");
 		}
 		// Check data types
@@ -557,6 +561,7 @@ public class GfatmImportMain implements ActionListener {
 		importJobObj.setImportUsers(usersCheckBox.isSelected());
 		importJobObj.setImportLocations(locationsCheckBox.isSelected());
 		importJobObj.setImportConcepts(conceptsCheckBox.isSelected());
+		importJobObj.setImportLabData(labMetadataCheckBox.isSelected());
 		importJobObj.setImportOtherMetadata(otherMetadataCheckBox.isSelected());
 		importJobObj.setFilterDate(true);
 		Calendar from = Calendar.getInstance();

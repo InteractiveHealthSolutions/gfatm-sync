@@ -44,6 +44,7 @@ public class ImportJob implements Job {
 			"concept_stop_word", "concept", "concept_answer",
 			"concept_description", "concept_name", "concept_numeric",
 			"concept_set"};
+	final String[] LAB_MODULE_TABLES = {};
 	final String[] OTHER_METADATA_TABLES = {"encounter_role", "encounter_type",
 			"field_type", "form_resource", "field", "form_field", "form",
 			"field_answer", "hl7_source", "htmlformentry_html_form",
@@ -58,6 +59,7 @@ public class ImportJob implements Job {
 	private boolean importUsers = false;
 	private boolean importLocations = false;
 	private boolean importConcepts = false;
+	private boolean importLabData = false;
 	private boolean importOtherMetadata;
 	private boolean filterDate = true;
 	private Date dateFrom;
@@ -70,20 +72,22 @@ public class ImportJob implements Job {
 	public void initialize(ImportJob importJob) {
 		setLocalDb(importJob.getLocalDb());
 		setRemoteDb(importJob.getRemoteDb());
-		setImportUsers(importJob.isImportUsers());
-		setImportLocations(importJob.isImportLocations());
-		setImportConcepts(importJob.isImportConcepts());
-		setImportOtherMetadata(importJob.isImportOtherMetadata());
-		setFilterDate(importJob.isFilterDate());
-		setDateFrom(importJob.getDateFrom());
-		setDateTo(importJob.getDateTo());
+		importUsers = importJob.importUsers;
+		importLocations = importJob.importLocations;
+		importConcepts = importJob.importConcepts;
+		importLabData = importJob.importLabData;
+		importOtherMetadata = importJob.importOtherMetadata;
+		filterDate = importJob.filterDate;
+		dateFrom = importJob.dateFrom;
+		dateTo = importJob.dateTo;
 		progressRange = importJob.progressRange;
 		// Maximum progress is the number of tables * 3 (import, insert and
 		// update)
-		progressRange = (isImportUsers() ? USER_TABLES.length : 0)
-				+ (isImportLocations() ? LOCATION_TABLES.length : 0)
-				+ (isImportConcepts() ? CONCEPT_TABLES.length : 0)
-				+ (isImportOtherMetadata() ? OTHER_METADATA_TABLES.length : 0)
+		progressRange = (importUsers ? USER_TABLES.length : 0)
+				+ (importLocations ? LOCATION_TABLES.length : 0)
+				+ (importConcepts ? CONCEPT_TABLES.length : 0)
+				+ (importLabData ? LAB_MODULE_TABLES.length : 0)
+				+ (importOtherMetadata ? OTHER_METADATA_TABLES.length : 0)
 				* 3;
 		GfatmImportMain.gfatmImport.resetProgressBar(0, progressRange);
 	}
@@ -107,7 +111,7 @@ public class ImportJob implements Job {
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
-		if (isImportUsers() && GfatmImportMain.mode != ImportStatus.STOPPED) {
+		if (importUsers && GfatmImportMain.mode != ImportStatus.STOPPED) {
 			try {
 				importUsers();
 				updateUsers();
@@ -116,7 +120,7 @@ public class ImportJob implements Job {
 						+ e.getMessage(), Level.WARNING);
 			}
 		}
-		if (isImportLocations() && GfatmImportMain.mode != ImportStatus.STOPPED) {
+		if (importLocations && GfatmImportMain.mode != ImportStatus.STOPPED) {
 			try {
 				importLocations();
 				updateLocations();
@@ -126,7 +130,7 @@ public class ImportJob implements Job {
 						Level.WARNING);
 			}
 		}
-		if (isImportConcepts() && GfatmImportMain.mode != ImportStatus.STOPPED) {
+		if (importConcepts && GfatmImportMain.mode != ImportStatus.STOPPED) {
 			try {
 				importConcepts();
 				updateConcepts();
@@ -136,8 +140,19 @@ public class ImportJob implements Job {
 						Level.WARNING);
 			}
 		}
-		if (isImportOtherMetadata()
-				&& GfatmImportMain.mode != ImportStatus.STOPPED) {
+
+		if (importLabData && GfatmImportMain.mode != ImportStatus.STOPPED) {
+			try {
+				importLabMetadata();
+				updateLabMetadata();
+			} catch (Exception e) {
+				GfatmImportMain.gfatmImport.log(
+						"Concept data import incomplete. " + e.getMessage(),
+						Level.WARNING);
+			}
+		}
+		
+		if (importOtherMetadata && GfatmImportMain.mode != ImportStatus.STOPPED) {
 			try {
 				importMetadata();
 				updateMetadata();
@@ -172,15 +187,15 @@ public class ImportJob implements Job {
 	 */
 	public String filter(String createDateName, String updateDateName) {
 		StringBuilder filter = new StringBuilder(" WHERE 1=1 ");
-		if (isFilterDate() & getDateFrom() != null & getDateTo() != null) {
+		if (filterDate & getDateFrom() != null & getDateTo() != null) {
 			filter.append("AND " + createDateName);
 			filter.append(" BETWEEN TIMESTAMP('"
-					+ DateTimeUtil.getSqlDateTime(getDateFrom()) + "') ");
+					+ DateTimeUtil.toSqlDateTimeString(getDateFrom()) + "') ");
 			filter.append("AND CURRENT_TIMESTAMP()");
 			if (updateDateName != null) {
 				filter.append(" OR " + updateDateName);
 				filter.append(" BETWEEN TIMESTAMP('"
-						+ DateTimeUtil.getSqlDateTime(getDateFrom()) + "') ");
+						+ DateTimeUtil.toSqlDateTimeString(getDateFrom()) + "') ");
 				filter.append(" AND CURRENT_TIMESTAMP()");
 			}
 		}
@@ -229,14 +244,6 @@ public class ImportJob implements Job {
 				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO person_name(person_name_id,preferred,person_id,prefix,given_name,middle_name,family_name_prefix,family_name,family_name2,family_name_suffix,degree,creator,date_created,voided,voided_by,date_voided,void_reason,changed_by,date_changed,uuid) SELECT person_name_id,preferred,person_id,prefix,given_name,middle_name,family_name_prefix,family_name,family_name2,family_name_suffix,degree,creator,date_created,voided,voided_by,date_voided,void_reason,changed_by,date_changed,uuid FROM temp_person_name";
-		localInsert(insertQuery);
-
-		// privilege
-		createTempTable(getLocalDb(), "privilege");
-		insertQuery = "INSERT INTO temp_privilege(privilege,description,uuid)VALUES(?,?,?)";
-		selectQuery = "SELECT privilege,description,uuid FROM privilege";
-		remoteSelectInsert(selectQuery, insertQuery);
-		insertQuery = "INSERT IGNORE INTO privilege(privilege,description,uuid) SELECT privilege,description,uuid FROM temp_privilege";
 		localInsert(insertQuery);
 
 		// provider_attribute_type
@@ -514,6 +521,38 @@ public class ImportJob implements Job {
 		insertQuery = "INSERT IGNORE INTO concept_set(concept_set_id,concept_id,concept_set,sort_weight,creator,date_created,uuid) SELECT concept_set_id,concept_id,concept_set,sort_weight,creator,date_created,uuid FROM temp_concept_set";
 		localInsert(insertQuery);
 	}
+	
+	/**
+	 * Import data from lab module metadata tables
+	 * 
+	 * @throws SQLException
+	 */
+	public void importLabMetadata() throws SQLException {
+		GfatmImportMain.gfatmImport.log(
+				"Importing lab module's metadata from remote source", Level.INFO);
+		String selectQuery = "";
+		String insertQuery = "";
+
+		// commonlabtest_type
+		createTempTable(getLocalDb(), "commonlabtest_type");
+		insertQuery = "INSERT INTO commonlabtest_type(test_type_id,name,short_name,test_group,requires_specimen,reference_concept_id,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT test_type_id,name,short_name,test_group,requires_specimen,reference_concept_id,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM commonlabtest_type "
+				+ filter("date_created", "date_changed")
+				+ " ORDER BY date_created";
+		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO commonlabtest_type(test_type_id,name,short_name,test_group,requires_specimen,reference_concept_id,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT test_type_id,name,short_name,test_group,requires_specimen,reference_concept_id,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_commonlabtest_type";
+		localInsert(insertQuery);
+		
+		// commonlabtest_attribute_type
+		createTempTable(getLocalDb(), "commonlabtest_attribute_type");
+		insertQuery = "INSERT INTO commonlabtest_attribute_type(test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint FROM commonlabtest_attribute_type "
+				+ filter("date_created", "date_changed")
+				+ " ORDER BY date_created";
+		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO commonlabtest_attribute_type(test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint) SELECT test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint FROM temp_commonlabtest_attribute_type";
+		localInsert(insertQuery);
+	}
 
 	/**
 	 * Import data from metadata tables
@@ -636,6 +675,14 @@ public class ImportJob implements Job {
 				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO person_attribute_type(person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid) SELECT person_attribute_type_id,name,description,format,foreign_key,searchable,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,edit_privilege,sort_weight,uuid FROM temp_person_attribute_type";
+		localInsert(insertQuery);
+
+		// privilege
+		createTempTable(getLocalDb(), "privilege");
+		insertQuery = "INSERT INTO temp_privilege(privilege,description,uuid)VALUES(?,?,?)";
+		selectQuery = "SELECT privilege,description,uuid FROM privilege";
+		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO privilege(privilege,description,uuid) SELECT privilege,description,uuid FROM temp_privilege";
 		localInsert(insertQuery);
 
 		// program
@@ -808,6 +855,31 @@ public class ImportJob implements Job {
 			GfatmImportMain.gfatmImport.updateProgress(1);
 		}
 	}
+	
+	/**
+	 * Update lab module metadata from temporary tables into original tables
+	 * 
+	 * @throws InstantiationException
+	 * @throws IllegalAccessException
+	 * @throws ClassNotFoundException
+	 */
+	private void updateLabMetadata() throws InstantiationException,
+			IllegalAccessException, ClassNotFoundException {
+		for (String table : LAB_MODULE_TABLES) {
+			String query = "INSERT IGNORE INTO " + table
+					+ " SELECT * FROM temp_" + table;
+			GfatmImportMain.gfatmImport.log("Executing: " + query, Level.INFO);
+			localDb.runCommand(CommandType.INSERT, query);
+		}
+		String[] updateQueries = {
+				"UPDATE commonlabtest_type AS a INNER JOIN temp_commonlabtest_type as b ON a.uuid = b.uuid SET a.name = b.name, a.short_name = b.short_name, a.test_group = b.test_group, a.requires_specimen = b.requires_specimen, a.reference_concept_id = b.reference_concept_id, a.description = b.description, a.creator = b.creator, a.date_created = b.date_created, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
+				"UPDATE commonlabtest_attribute_type AS a INNER JOIN temp_commonlabtest_attribute_type as b ON a.uuid = b.uuid SET a.test_type_id = b.test_type_id, a.name = b.name, a.datatype = b.datatype, a.min_occurs = b.min_occurs, a.max_occurs = b.max_occurs, a.datatype_config = b.datatype_config, a.handler_config = b.handler_config, a.sort_weight = b.sort_weight, a.description = b.description, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason, a.preferred_handler = b.preferred_handler, a.hint = b.hint, a.group_id = b.group_id, a.group_name = b.group_name"};
+		for (String query : updateQueries) {
+			GfatmImportMain.gfatmImport.log("Executing: " + query, Level.INFO);
+			localDb.runCommand(CommandType.UPDATE, query);
+			GfatmImportMain.gfatmImport.updateProgress(1);
+		}
+	}
 
 	/**
 	 * Update other metadata from temporary tables into original tables
@@ -929,40 +1001,24 @@ public class ImportJob implements Job {
 		this.remoteDb = remoteDb;
 	}
 
-	public boolean isImportUsers() {
-		return importUsers;
-	}
-
 	public void setImportUsers(boolean importUsers) {
 		this.importUsers = importUsers;
-	}
-
-	public boolean isImportLocations() {
-		return importLocations;
 	}
 
 	public void setImportLocations(boolean importLocations) {
 		this.importLocations = importLocations;
 	}
 
-	public boolean isImportConcepts() {
-		return importConcepts;
-	}
-
 	public void setImportConcepts(boolean importConcepts) {
 		this.importConcepts = importConcepts;
 	}
-
-	public boolean isImportOtherMetadata() {
-		return importOtherMetadata;
+	
+	public void setImportLabData(boolean importLabData) {
+		this.importLabData = importLabData;
 	}
 
 	public void setImportOtherMetadata(boolean importOtherMetadata) {
 		this.importOtherMetadata = importOtherMetadata;
-	}
-
-	public boolean isFilterDate() {
-		return filterDate;
 	}
 
 	public void setFilterDate(boolean filterDate) {

@@ -125,9 +125,9 @@ public class OpenMrsExtendedImportController extends AbstractImportController {
 			tableName = "commonlabtest_attribute_type";
 			// Insert into tmp_commonlabtest_attribute_type table...
 			insertQuery = "INSERT INTO tmp_" + tableName
-					+ " (surrogate_id, implementation_id, test_attribute_type_id, test_type_id, name, datatype, min_occurs, max_occurs, datatype_config, handler_config, sort_weight, description, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, preferred_handler, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+					+ " (surrogate_id, implementation_id, test_attribute_type_id, test_type_id, name, datatype, min_occurs, max_occurs, datatype_config, handler_config, sort_weight, description, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, preferred_handler, hint, group_name, multiset_name, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId
-					+ "', test_attribute_type_id, test_type_id, name, datatype, min_occurs, max_occurs, datatype_config, handler_config, sort_weight, description, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, preferred_handler, uuid FROM "
+					+ "', test_attribute_type_id, test_type_id, name, datatype, min_occurs, max_occurs, datatype_config, handler_config, sort_weight, description, creator, date_created, changed_by, date_changed, retired, retired_by, date_retired, retire_reason, preferred_handler, hint, group_name, multiset_name, uuid FROM "
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
 			log.info("Inserting data from " + database + "." + tableName + " into data warehouse");
 			remoteSelectInsert(selectQuery, insertQuery, remoteDb.getConnection(), targetDb.getConnection());
@@ -138,7 +138,7 @@ public class OpenMrsExtendedImportController extends AbstractImportController {
 			targetDb.runCommand(CommandType.INSERT, insertQuery);
 			// Update the existing records
 			updateQuery = "UPDATE " + tableName + " AS a, tmp_" + tableName
-					+ " AS t SET a.name = t.name, a.datatype = t.datatype, a.min_occurs = t.min_occurs, a.max_occurs = t.max_occurs, a.datatype_config = t.datatype_config, a.handler_config = t.handler_config, a.sort_weight = t.sort_weight, a.description = t.description, a.creator = t.creator, a.date_created = t.date_created, a.changed_by = t.changed_by, a.date_changed = t.date_changed, a.retired = t.retired, a.retired_by = t.retired_by, a.date_retired = t.date_retired, a.retire_reason = t.retire_reason, a.preferred_handler = t.preferred_handler WHERE a.implementation_id = t.implementation_id = '"
+					+ " AS t SET a.name = t.name, a.datatype = t.datatype, a.min_occurs = t.min_occurs, a.max_occurs = t.max_occurs, a.datatype_config = t.datatype_config, a.handler_config = t.handler_config, a.sort_weight = t.sort_weight, a.description = t.description, a.creator = t.creator, a.date_created = t.date_created, a.changed_by = t.changed_by, a.date_changed = t.date_changed, a.retired = t.retired, a.retired_by = t.retired_by, a.date_retired = t.date_retired, a.retire_reason = t.retire_reason, a.preferred_handler = t.preferred_handler, a.hint = t.hint, a.group_name = t.group_name, a.multiset_name = t.multiset_name WHERE a.implementation_id = t.implementation_id = '"
 					+ implementationId + "' AND a.uuid = t.uuid";
 			targetDb.runCommand(CommandType.UPDATE, updateQuery);
 

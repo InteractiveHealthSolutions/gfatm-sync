@@ -80,7 +80,6 @@ public class DimensionController {
 		}
 		try {
 			log.info("Creating patient dimension");
-			System.out.println(from + " to " + to);
 			patientDimension(from, to, implementationId);
 		} catch (Exception e) {
 			log.warning(e.getMessage());

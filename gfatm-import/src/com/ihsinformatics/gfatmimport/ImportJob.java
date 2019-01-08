@@ -51,7 +51,7 @@ public class ImportJob implements Job {
 			"patient_identifier_type", "person_attribute_type", "program",
 			"program_workflow", "program_workflow_state", "order_type",
 			"scheduler_task_config", "scheduler_task_config_property",
-			"visit_type", "visit_attribute_type"};
+			"visit_type", "visit_attribute_type", "drug"};
 
 	private DatabaseUtil localDb;
 	private DatabaseUtil remoteDb;
@@ -760,6 +760,16 @@ public class ImportJob implements Job {
 		remoteSelectInsert(selectQuery, insertQuery);
 		insertQuery = "INSERT IGNORE INTO visit_attribute_type(visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid) SELECT visit_attribute_type_id,name,description,datatype,datatype_config,preferred_handler,handler_config,min_occurs,max_occurs,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid FROM temp_visit_attribute_type";
 		localInsert(insertQuery);
+		
+		// drug
+		createTempTable(getLocalDb(), "drug");
+		insertQuery = "INSERT INTO temp_drug(drug_id,concept_id,name,combination,dosage_form,maximum_daily_dose,minimum_daily_dose,route,creator,date_created,retired,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid,strength)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT drug_id,concept_id,name,combination,dosage_form,maximum_daily_dose,minimum_daily_dose,route,creator,date_created,retired,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid,strength FROM drug "
+				+ filter("date_created", "date_changed")
+				+ " ORDER BY date_created";
+		remoteSelectInsert(selectQuery, insertQuery);
+		insertQuery = "INSERT IGNORE INTO drug(drug_id,concept_id,name,combination,dosage_form,maximum_daily_dose,minimum_daily_dose,route,creator,date_created,retired,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid,strength) SELECT drug_id,concept_id,name,combination,dosage_form,maximum_daily_dose,minimum_daily_dose,route,creator,date_created,retired,changed_by,date_changed,retired_by,date_retired,retire_reason,uuid,strength FROM temp_drug";
+		localInsert(insertQuery);
 	}
 
 	/**
@@ -916,7 +926,8 @@ public class ImportJob implements Job {
 				"UPDATE scheduler_task_config AS a INNER JOIN temp_scheduler_task_config as b ON a.uuid = b.uuid SET a.name = b.name, a.description = b.description, a.schedulable_class = b.schedulable_class, a.start_time = b.start_time, a.start_time_pattern = b.start_time_pattern, a.repeat_interval = b.repeat_interval, a.start_on_startup = b.start_on_startup, a.started = b.started, a.created_by = b.created_by, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.last_execution_time = b.last_execution_time",
 				"UPDATE scheduler_task_config_property AS a INNER JOIN temp_scheduler_task_config_property as b ON a.task_config_property_id = b.task_config_property_id SET a.value = b.value, a.task_config_id = b.task_config_id",
 				"UPDATE visit_type AS a INNER JOIN temp_visit_type as b ON a.uuid = b.uuid SET a.name = b.name, a.description = b.description, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
-				"UPDATE visit_attribute_type AS a INNER JOIN temp_visit_attribute_type as b ON a.uuid = b.uuid SET a.name = b.name, a.description = b.description, a.datatype = b.datatype, a.datatype_config = b.datatype_config, a.preferred_handler = b.preferred_handler, a.handler_config = b.handler_config, a.min_occurs = b.min_occurs, a.max_occurs = b.max_occurs, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason"};
+				"UPDATE visit_attribute_type AS a INNER JOIN temp_visit_attribute_type as b ON a.uuid = b.uuid SET a.name = b.name, a.description = b.description, a.datatype = b.datatype, a.datatype_config = b.datatype_config, a.preferred_handler = b.preferred_handler, a.handler_config = b.handler_config, a.min_occurs = b.min_occurs, a.max_occurs = b.max_occurs, a.creator = b.creator, a.date_created = b.date_created, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired = b.retired, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason",
+				"UPDATE drug AS a INNER JOIN temp_drug as b ON a.uuid = b.uuid SET a.name = b.name, a.concept_id = b.concept_id, a.combination = b.combination, a.dosage_form = b.dosage_form, a.maximum_daily_dose = b.maximum_daily_dose, a.minimum_daily_dose = b.minimum_daily_dose, a.route = b.route, a.creator = b.creator, a.date_created = b.date_created, a.retired = b.retired, a.changed_by = b.changed_by, a.date_changed = b.date_changed, a.retired_by = b.retired_by, a.date_retired = b.date_retired, a.retire_reason = b.retire_reason, a.strength = b.strength"};
 		for (String query : updateQueries) {
 			GfatmImportMain.gfatmImport.log("Executing: " + query, Level.INFO);
 			localDb.runCommand(CommandType.UPDATE, query);

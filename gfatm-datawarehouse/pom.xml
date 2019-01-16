@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>gfatm-sync</groupId>
 	<artifactId>gfatm-datawarehouse</artifactId>
-	<version>2.0.3</version>
+	<version>2.0.4</version>
 	<name>Global Fund TB Data Warehouse</name>
 	<description>Data Warehousing process for GFATM databases</description>
 	<build>

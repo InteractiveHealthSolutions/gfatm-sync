@@ -109,14 +109,24 @@ public class DimensionController {
 			log.warning(e.getMessage());
 		}
 		try {
-			log.info("Starting deencounterizing process");
+			log.info("Starting deencounterizing OpenMRS");
 			deencounterizeOpenMrs();
-			deencounterizeGfatm();
-			denormalizeOpenMrsExtended();
-			log.info("Deencounterizing process complete");
 		} catch (Exception e) {
 			log.warning(e.getMessage());
 		}
+		try {
+			log.info("Starting deencounterizing GFATM");
+			deencounterizeGfatm();
+		} catch (Exception e) {
+			log.warning(e.getMessage());
+		}
+		try {
+			log.info("Starting deencounterizing OpenMRS extensions");
+			denormalizeOpenMrsExtended();
+		} catch (Exception e) {
+			log.warning(e.getMessage());
+		}
+		log.info("Deencounterizing process complete");
 	}
 
 	/**
@@ -357,8 +367,7 @@ public class DimensionController {
 		db.runCommand(CommandType.CREATE,
 				"create table tmp select distinct encounter_type, concept_id, question from dim_obs");
 		// Fetch encounter types and names
-		Object[][] encounterTypes = db.getTableData("dim_encounter", "distinct encounter_type, encounter_name",
-				"where encounter_type=162");
+		Object[][] encounterTypes = db.getTableData("dim_encounter", "distinct encounter_type, encounter_name", null);
 		if (encounterTypes == null) {
 			log.severe("Encounter types could not be fetched");
 			return;

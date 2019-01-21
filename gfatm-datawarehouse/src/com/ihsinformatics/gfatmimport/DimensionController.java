@@ -11,7 +11,6 @@ Interactive Health Solutions, hereby disclaims all copyright interest in this pr
  */
 package com.ihsinformatics.gfatmimport;
 
-import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -46,7 +45,6 @@ public class DimensionController {
 		Calendar to = Calendar.getInstance();
 		Object[][] sources = db.getTableData("_implementation", "implementation_id", "active=1 AND status='RUNNING'");
 		// For each source, model dimensions
-		// TODO: Restrict by date
 		for (Object[] source : sources) {
 			int implementationId = Integer.parseInt(source[0].toString());
 			modelDimensions(from.getTime(), to.getTime(), implementationId);
@@ -55,56 +53,16 @@ public class DimensionController {
 
 	public void modelDimensions(Date from, Date to, int implementationId) {
 		try {
-			log.info("Creating time dimension");
+			log.info("Creating/updating time dimension");
 			timeDimension();
 		} catch (Exception e) {
 			log.warning(e.getMessage());
 		}
 		try {
-			log.info("Creating concept dimension");
-			conceptDimension(from, to, implementationId);
-		} catch (Exception e) {
-			log.warning(e.getMessage());
-		}
-		try {
-			log.info("Creating location dimension");
-			locationDimension(from, to, implementationId);
-		} catch (Exception e) {
-			log.warning(e.getMessage());
-		}
-		try {
-			log.info("Creating user dimension");
-			userDimension(from, to, implementationId);
-		} catch (Exception e) {
-			log.warning(e.getMessage());
-		}
-		try {
-			log.info("Creating patient dimension");
-			patientDimension(from, to, implementationId);
-		} catch (Exception e) {
-			log.warning(e.getMessage());
-		}
-		try {
-			log.info("Creating encounter and observation dimensions");
-			encounterAndObsDimension(from, to, implementationId);
-		} catch (Exception e) {
-			log.warning(e.getMessage());
-		}
-		try {
-			log.info("Creating user form and result dimensions");
-			userFormAndResultDimension(from, to, implementationId);
-		} catch (Exception e) {
-			log.warning(e.getMessage());
-		}
-		try {
-			log.info("Creating user form and result dimensions");
-			userFormAndResultDimension(from, to, implementationId);
-		} catch (Exception e) {
-			log.warning(e.getMessage());
-		}
-		try {
-			log.info("Creating lab result dimensions");
-			commonLabResultDimension(from, to, implementationId);
+			log.info("Creating/updating dimensions");
+			Map<String, Object> params = new HashMap<String, Object>();
+			params.put("impl_id", implementationId);
+			db.runStoredProcedure("dim_modeling", params);
 		} catch (Exception e) {
 			log.warning(e.getMessage());
 		}
@@ -168,133 +126,6 @@ public class DimensionController {
 		query.setCharAt(query.length() - 1, ';');
 		log.info("Executing: " + query.toString());
 		db.runCommand(CommandType.INSERT, query.toString());
-	}
-
-	/**
-	 * Fill in Concept dimension table
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 * @throws SQLException
-	 */
-	public void conceptDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
-		log.info("Transforming concept attributes.");
-		Map<String, Object> params = new HashMap<String, Object>();
-		params.put("impl_id", implementationId);
-		db.runStoredProcedure("concept_dimension", params);
-		log.info("Concept transformation complete.");
-	}
-
-	/**
-	 * Fill in Location dimension table
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 * @throws SQLException
-	 */
-	public void locationDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
-		log.info("Transforming location attributes.");
-		Map<String, Object> params = new HashMap<String, Object>();
-		params.put("impl_id", implementationId);
-		db.runStoredProcedure("location_dimension", params);
-		log.info("Location transformation complete.");
-	}
-
-	/**
-	 * Fill in user dimension table
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 * @throws SQLException
-	 */
-	public void userDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
-		log.info("Transforming user attributes.");
-		Map<String, Object> params = new HashMap<String, Object>();
-		params.put("impl_id", implementationId);
-		db.runStoredProcedure("user_dimension", params);
-		log.info("User transformation complete.");
-	}
-
-	/**
-	 * Prepare patient data and fill in Patient dimension
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 * @throws SQLException
-	 */
-	public void patientDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
-		log.info("Transforming patient attributes.");
-		Map<String, Object> params = new HashMap<String, Object>();
-		params.put("impl_id", implementationId);
-		params.put("date_from", from);
-		params.put("date_to", to);
-		db.runStoredProcedure("patient_dimension", params);
-		log.info("Patient transformation complete.");
-	}
-
-	/**
-	 * Fill in encounters and observations in respective dimensions
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 * @throws SQLException
-	 */
-	public void encounterAndObsDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
-		log.info("Transforming encounter attributes.");
-		Map<String, Object> params = new HashMap<String, Object>();
-		params.put("impl_id", implementationId);
-		params.put("date_from", from);
-		params.put("date_to", to);
-		db.runStoredProcedure("encounter_dimension", params);
-		log.info("Encounter transformation complete.");
-	}
-
-	/**
-	 * Fill in user forms results in respective dimensions
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 * @throws SQLException
-	 */
-	public void userFormAndResultDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
-		log.info("Transforming user form attributes.");
-		Map<String, Object> params = new HashMap<String, Object>();
-		params.put("impl_id", implementationId);
-		params.put("date_from", from);
-		params.put("date_to", to);
-		db.runStoredProcedure("user_form_dimension", params);
-		log.info("User Form transformation complete.");
-	}
-
-	/**
-	 * Fill in common lab results in respective dimensions
-	 * 
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 * @throws SQLException
-	 */
-	public void commonLabResultDimension(Date from, Date to, int implementationId)
-			throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
-		log.info("Transforming common lab module attributes.");
-		Map<String, Object> params = new HashMap<String, Object>();
-		params.put("impl_id", implementationId);
-		params.put("date_from", from);
-		params.put("date_to", to);
-		db.runStoredProcedure("lab_test_dimension", params);
-		log.info("Common lab module transformation complete.");
 	}
 
 	public void deencounterizeGfatm() {

@@ -162,7 +162,7 @@ public class DimensionControllerTest extends TestCase {
 
 	/**
 	 * Test method for
-	 * {@link com.ihsinformatics.gfatmimport.DimensionController#conceptDimension(java.util.Date, java.util.Date, int)}
+	 * {@link com.ihsinformatics.gfatmimport.DimensionController#dimensionModeling(java.util.Date, java.util.Date, int)}
 	 * .
 	 */
 	@Test

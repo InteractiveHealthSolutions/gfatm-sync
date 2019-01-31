@@ -62,6 +62,8 @@ public class DimensionController {
 			log.info("Creating/updating dimensions");
 			Map<String, Object> params = new HashMap<String, Object>();
 			params.put("impl_id", implementationId);
+			params.put("date_from", from);
+			params.put("date_to", to);
 			db.runStoredProcedure("dim_modeling", params);
 		} catch (Exception e) {
 			log.warning(e.getMessage());

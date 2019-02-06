@@ -545,12 +545,12 @@ public class ImportJob implements Job {
 		
 		// commonlabtest_attribute_type
 		createTempTable(getLocalDb(), "commonlabtest_attribute_type");
-		insertQuery = "INSERT INTO temp_commonlabtest_attribute_type(test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		selectQuery = "SELECT test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint FROM commonlabtest_attribute_type "
+		insertQuery = "INSERT INTO temp_commonlabtest_attribute_type(test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint,group_name,multiset_name)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		selectQuery = "SELECT test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint,group_name,multiset_name FROM commonlabtest_attribute_type "
 				+ filter("date_created", "date_changed")
 				+ " ORDER BY date_created";
 		remoteSelectInsert(selectQuery, insertQuery);
-		insertQuery = "INSERT IGNORE INTO commonlabtest_attribute_type(test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint) SELECT test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint FROM temp_commonlabtest_attribute_type";
+		insertQuery = "INSERT IGNORE INTO commonlabtest_attribute_type(test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint,group_name,multiset_name) SELECT test_attribute_type_id,test_type_id,name,datatype,min_occurs,max_occurs,datatype_config,handler_config,sort_weight,description,creator,date_created,changed_by,date_changed,retired,retired_by,date_retired,retire_reason,uuid,preferred_handler,hint,group_name,multiset_name FROM temp_commonlabtest_attribute_type";
 		localInsert(insertQuery);
 	}
 

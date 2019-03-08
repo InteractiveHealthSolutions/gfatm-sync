@@ -224,7 +224,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Relationship Type
 			tableName = "relationship_type";
 			insertQuery = "INSERT INTO tmp_" + tableName
-					+ " (surrogate_id, implementation_id, relationship_type_id, a_is_to_b, b_is_to_a, preferred, weight, description, creator, date_created, retired, retired_by, date_retired, retire_reason, date_changed, changed_by, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+					+ " (surrogate_id, implementation_id, relationship_type_id, a_is_to_b, b_is_to_a, preferred, weight, description, creator, date_created, retired, retired_by, date_retired, retire_reason, date_changed, changed_by, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId
 					+ "', relationship_type_id, a_is_to_b, b_is_to_a, preferred, weight, description, creator, date_created, retired, retired_by, date_retired, retire_reason, date_changed, changed_by, uuid FROM "
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");
@@ -242,7 +242,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Relationship
 			tableName = "relationship";
 			insertQuery = "INSERT INTO tmp_" + tableName
-					+ " (surrogate_id, implementation_id, relationship_id, person_a, relationship, person_b, start_date, end_date, creator, date_created, date_changed, changed_by, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+					+ " (surrogate_id, implementation_id, relationship_id, person_a, relationship, person_b, start_date, end_date, creator, date_created, date_changed, changed_by, voided, voided_by, date_voided, void_reason, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId
 					+ "', relationship_id, person_a, relationship, person_b, start_date, end_date, creator, date_created, date_changed, changed_by, voided, voided_by, date_voided, void_reason, uuid FROM "
 					+ database + "." + tableName + " AS t " + filter("t.date_created", "t.date_changed");

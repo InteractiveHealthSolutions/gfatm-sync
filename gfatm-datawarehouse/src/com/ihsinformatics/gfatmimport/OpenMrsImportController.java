@@ -1195,7 +1195,7 @@ public class OpenMrsImportController extends AbstractImportController {
 			// Drug
 			tableName = "drug";
 			insertQuery = "INSERT INTO tmp_" + tableName
-					+ " (surrogate_id, implementation_id, drug_id, concept_id, name, combination, dosage_form, maximum_daily_dose, minimum_daily_dose, route, creator, date_created, retired, changed_by, date_changed, retired_by, date_retired, retire_reason, strength, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+					+ " (surrogate_id, implementation_id, drug_id, concept_id, name, combination, dosage_form, maximum_daily_dose, minimum_daily_dose, route, creator, date_created, retired, changed_by, date_changed, retired_by, date_retired, retire_reason, strength, uuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			selectQuery = "SELECT 0,'" + implementationId
 					+ "', drug_id, concept_id, name, combination, dosage_form, maximum_daily_dose, minimum_daily_dose, route, creator, date_created, retired, changed_by, date_changed, retired_by, date_retired, retire_reason, strength, uuid FROM "
 					+ database + "." + tableName + " AS t " + filter("t.date_created", null);
